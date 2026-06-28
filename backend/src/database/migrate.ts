@@ -353,6 +353,14 @@ const migrations: Migration[] = [
     down: `ALTER TABLE users DROP CONSTRAINT IF EXISTS chk_users_role;`,
   },
   {
+    name: '017_bond_payouts_add_tds',
+    up: `
+      ALTER TABLE bond_payouts
+        ADD COLUMN IF NOT EXISTS tds NUMERIC(15,2) NOT NULL DEFAULT 0;
+    `,
+    down: `ALTER TABLE bond_payouts DROP COLUMN IF EXISTS tds;`,
+  },
+  {
     name: '007_seed_system_categories',
     up: `
       INSERT INTO categories (name, icon, color, is_system) VALUES

@@ -57,6 +57,14 @@ export class AuthService {
     );
   }
 
+  forgotPassword(email: string): Observable<ApiResponse<{ message: string }>> {
+    return this.http.post<ApiResponse<{ message: string }>>(`${this.base}/password/forgot`, { email });
+  }
+
+  resetPassword(email: string, otp: string, newPassword: string): Observable<ApiResponse<{ message: string }>> {
+    return this.http.post<ApiResponse<{ message: string }>>(`${this.base}/password/reset`, { email, otp, newPassword });
+  }
+
   verifyMfa(token: string): Observable<ApiResponse<AuthTokens>> {
     return this.http.post<ApiResponse<AuthTokens>>(`${this.base}/mfa/verify`, { token }).pipe(
       tap((res) => this.storeTokens(res.data))

@@ -34,6 +34,7 @@ import { AuthService } from '../../../core/services/auth.service';
     mat-form-field { width: 100%; }
     .actions { display: flex; flex-direction: column; gap: 12px; margin-top: 8px; }
     .error-msg { color: #dc2626; font-size: 0.875rem; text-align: center; }
+    .forgot-link { text-align: right; font-size: 0.8125rem; margin: -8px 0 4px; }
     .register-link { text-align: center; margin-top: 16px; font-size: 0.875rem; color: #6b7280; }
   `],
   template: `
@@ -62,6 +63,10 @@ import { AuthService } from '../../../core/services/auth.service';
               </button>
               <mat-error *ngIf="form.get('password')?.hasError('required')">Password is required</mat-error>
             </mat-form-field>
+
+            <div class="forgot-link">
+              <a routerLink="/auth/forgot-password">Forgot password?</a>
+            </div>
 
             <p *ngIf="error" class="error-msg">{{ error }}</p>
 

@@ -1,5 +1,5 @@
 import { Component, OnInit, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
-import { NgIf } from '@angular/common';
+import { NgIf, NgFor } from '@angular/common';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatIconModule } from '@angular/material/icon';
 import { AdminService } from '../../core/services/admin.service';
@@ -9,7 +9,7 @@ import { AdminStats } from '../../shared/models/auth.models';
   selector: 'app-admin-stats',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [NgIf, MatProgressSpinnerModule, MatIconModule],
+  imports: [NgIf, NgFor, MatProgressSpinnerModule, MatIconModule],
   styles: [`
     .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 20px; }
 

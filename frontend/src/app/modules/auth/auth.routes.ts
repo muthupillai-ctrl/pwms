@@ -17,6 +17,11 @@ export const authRoutes: Routes = [
       import('./mfa/mfa.component').then((m) => m.MfaComponent),
   },
   {
+    path: 'forgot-password',
+    loadComponent: () =>
+      import('./forgot-password/forgot-password.component').then((m) => m.ForgotPasswordComponent),
+  },
+  {
     path: '',
     redirectTo: 'login',
     pathMatch: 'full',

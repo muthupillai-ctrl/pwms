@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { SipService } from './sip.service';
 import { ok, created, noContent } from '../../utils/response';
+import { p } from '../../utils/params';
 
 const sipService = new SipService();
 
@@ -21,14 +22,14 @@ export const SipController = {
 
   async update(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const sip = await sipService.update(req.params.id, req.user!.sub, req.body);
+      const sip = await sipService.update(p(req.params.id), req.user!.sub, req.body);
       ok(res, { sip });
     } catch (err) { next(err); }
   },
 
   async remove(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      await sipService.remove(req.params.id, req.user!.sub);
+      await sipService.remove(p(req.params.id), req.user!.sub);
       noContent(res);
     } catch (err) { next(err); }
   },

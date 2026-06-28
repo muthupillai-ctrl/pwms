@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { FdService } from './fd.service';
 import { ok, created, noContent } from '../../utils/response';
+import { p } from '../../utils/params';
 
 const fdService = new FdService();
 
@@ -14,7 +15,7 @@ export const FdController = {
 
   async getOne(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const fd = await fdService.getOne(req.params.id, req.user!.sub);
+      const fd = await fdService.getOne(p(req.params.id), req.user!.sub);
       ok(res, { fixedDeposit: fd });
     } catch (err) { next(err); }
   },
@@ -28,14 +29,14 @@ export const FdController = {
 
   async update(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const fd = await fdService.update(req.params.id, req.user!.sub, req.body);
+      const fd = await fdService.update(p(req.params.id), req.user!.sub, req.body);
       ok(res, { fixedDeposit: fd });
     } catch (err) { next(err); }
   },
 
   async remove(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      await fdService.remove(req.params.id, req.user!.sub);
+      await fdService.remove(p(req.params.id), req.user!.sub);
       noContent(res);
     } catch (err) { next(err); }
   },

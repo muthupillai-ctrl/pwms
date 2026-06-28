@@ -1,4 +1,4 @@
-import { Pool, PoolClient } from 'pg';
+import { Pool, PoolClient, QueryResultRow } from 'pg';
 import { env } from './env';
 import { logger } from '../utils/logger';
 
@@ -8,13 +8,13 @@ const pool = new Pool({
   database: env.db.name,
   user:     env.db.user,
   password: env.db.password,
-  min:      env.db.poolMin,
+  min:      0,             // never keep idle connections open — Aiven kills them anyway
   max:      env.db.poolMax,
   ssl:      env.db.ssl ? { rejectUnauthorized: false } : false,
-  idleTimeoutMillis:       25_000, // retire idle connections before network drops them
-  connectionTimeoutMillis:  8_000,
-  keepAlive:                    true,
-  keepAliveInitialDelayMillis: 10_000, // send TCP keepalive after 10 s idle
+  idleTimeoutMillis:       20_000, // retire a connection after 20 s idle (well under Aiven's ~60 s limit)
+  connectionTimeoutMillis: 10_000,
+  keepAlive:               true,
+  keepAliveInitialDelayMillis: 5_000,
 });
 
 pool.on('connect', () => logger.debug('DB pool: new client connected'));
@@ -22,7 +22,7 @@ pool.on('error', (err) => logger.error('DB pool error', { error: err.message }))
 
 const TRANSIENT_CODES = new Set(['ETIMEDOUT', 'ECONNRESET', 'EPIPE', 'ECONNREFUSED']);
 
-async function runQuery<T>(text: string, params?: unknown[]): Promise<T[]> {
+async function runQuery<T extends QueryResultRow>(text: string, params?: unknown[]): Promise<T[]> {
   const start  = Date.now();
   const client = await pool.connect();
   try {
@@ -39,7 +39,7 @@ async function runQuery<T>(text: string, params?: unknown[]): Promise<T[]> {
   }
 }
 
-export async function query<T = any>(
+export async function query<T extends QueryResultRow = QueryResultRow>(
   text: string,
   params?: unknown[]
 ): Promise<T[]> {
@@ -54,7 +54,7 @@ export async function query<T = any>(
   }
 }
 
-export async function queryOne<T = any>(
+export async function queryOne<T extends QueryResultRow = QueryResultRow>(
   text: string,
   params?: unknown[]
 ): Promise<T | null> {

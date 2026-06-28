@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { LoansService } from './loans.service';
 import { ok, created, noContent } from '../../utils/response';
+import { p } from '../../utils/params';
 
 const loansService = new LoansService();
 
@@ -14,7 +15,7 @@ export const LoansController = {
 
   async getOne(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const loan = await loansService.getOne(req.params.id, req.user!.sub);
+      const loan = await loansService.getOne(p(req.params.id), req.user!.sub);
       ok(res, { loan });
     } catch (err) { next(err); }
   },
@@ -28,7 +29,7 @@ export const LoansController = {
 
   async update(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const loan = await loansService.update(req.params.id, req.user!.sub, req.body);
+      const loan = await loansService.update(p(req.params.id), req.user!.sub, req.body);
       ok(res, { loan });
     } catch (err) { next(err); }
   },
@@ -36,35 +37,35 @@ export const LoansController = {
   async recordRepayment(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { amount, notes } = req.body;
-      const loan = await loansService.recordRepayment(req.params.id, req.user!.sub, amount, notes);
+      const loan = await loansService.recordRepayment(p(req.params.id), req.user!.sub, amount, notes);
       ok(res, { loan });
     } catch (err) { next(err); }
   },
 
   async remove(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      await loansService.remove(req.params.id, req.user!.sub);
+      await loansService.remove(p(req.params.id), req.user!.sub);
       noContent(res);
     } catch (err) { next(err); }
   },
 
   async listRepayments(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const repayments = await loansService.listRepayments(req.params.id, req.user!.sub);
+      const repayments = await loansService.listRepayments(p(req.params.id), req.user!.sub);
       ok(res, { repayments });
     } catch (err) { next(err); }
   },
 
   async addRepayment(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const repayment = await loansService.addRepayment(req.params.id, req.user!.sub, req.body);
+      const repayment = await loansService.addRepayment(p(req.params.id), req.user!.sub, req.body);
       created(res, { repayment });
     } catch (err) { next(err); }
   },
 
   async deleteRepayment(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      await loansService.deleteRepayment(req.params.repaymentId, req.user!.sub);
+      await loansService.deleteRepayment(p(req.params.repaymentId), req.user!.sub);
       noContent(res);
     } catch (err) { next(err); }
   },
@@ -79,7 +80,7 @@ export const LoansController = {
 
   async myRepayments(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const repayments = await loansService.listRepaymentsByEmail(req.params.id, req.user!.email);
+      const repayments = await loansService.listRepaymentsByEmail(p(req.params.id), req.user!.email);
       ok(res, { repayments });
     } catch (err) { next(err); }
   },

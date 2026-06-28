@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { AccountsService } from './accounts.service';
 import { ok, created, noContent } from '../../utils/response';
+import { p } from '../../utils/params';
 
 const accountsService = new AccountsService();
 
@@ -14,7 +15,7 @@ export const AccountsController = {
 
   async getOne(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const account = await accountsService.getOne(req.params.id, req.user!.sub);
+      const account = await accountsService.getOne(p(req.params.id), req.user!.sub);
       ok(res, { account });
     } catch (err) { next(err); }
   },
@@ -28,7 +29,7 @@ export const AccountsController = {
 
   async update(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const account = await accountsService.update(req.params.id, req.user!.sub, req.body);
+      const account = await accountsService.update(p(req.params.id), req.user!.sub, req.body);
       ok(res, { account });
     } catch (err) { next(err); }
   },
@@ -36,14 +37,14 @@ export const AccountsController = {
   async updateBalance(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { balance, notes } = req.body;
-      const account = await accountsService.updateBalance(req.params.id, req.user!.sub, balance, notes);
+      const account = await accountsService.updateBalance(p(req.params.id), req.user!.sub, balance, notes);
       ok(res, { account });
     } catch (err) { next(err); }
   },
 
   async remove(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      await accountsService.remove(req.params.id, req.user!.sub);
+      await accountsService.remove(p(req.params.id), req.user!.sub);
       noContent(res);
     } catch (err) { next(err); }
   },

@@ -36,6 +36,11 @@ interface SipRow {
   current_value: string;
 }
 
+interface BondSummaryRow {
+  count: string;
+  total_payout: string;
+}
+
 const FD_COMPOUNDING_PERIODS: Record<FdCompounding, number> = {
   simple:      0,
   annual:      1,
@@ -100,7 +105,7 @@ const EMPTY_FD: FdBreakdownEntry = { balance: 0, count: 0, maturityValue: 0, int
 export class PortfolioService {
   async getSummary(userId: string): Promise<PortfolioSummary> {
     // Run all queries in parallel
-    const [accountRows, fdAssets, loanRows, mfFunds, sipRows] = await Promise.all([
+    const [accountRows, fdAssets, loanRows, mfFunds, sipRows, bondSummary] = await Promise.all([
       // Bank accounts only (savings/current/cash/other) — other modules own their own tables
       query<AccountSummaryRow>(
         `SELECT 'bank' AS account_type, COALESCE(SUM(balance), 0) AS total_balance, COUNT(*)::text AS count
@@ -137,6 +142,15 @@ export class PortfolioService {
       // SIP current values (nav × units, stored by sip service)
       query<SipRow>(
         `SELECT current_value FROM sip_investments WHERE user_id = $1`,
+        [userId]
+      ),
+      // Bonds: total = sum of (interest + principal - tds) across all payouts
+      query<BondSummaryRow>(
+        `SELECT COUNT(DISTINCT a.id)::text AS count,
+                COALESCE(SUM(bp.interest_payout + bp.principal_amount - bp.tds), 0)::text AS total_payout
+         FROM assets a
+         LEFT JOIN bond_payouts bp ON bp.bond_id = a.id AND bp.user_id = $1
+         WHERE a.user_id = $1 AND a.asset_type = 'bond'`,
         [userId]
       ),
     ]);
@@ -189,6 +203,13 @@ export class PortfolioService {
     for (const s of sipRows) sipValue += parseFloat(s.current_value);
     breakdown.sip.balance = Math.round(sipValue * 100) / 100;
     breakdown.sip.count   = sipRows.length;
+
+    // Bonds: sum of total_payout (interest + principal - tds) across all payouts
+    const bondRow = bondSummary[0];
+    if (bondRow) {
+      breakdown.bond.balance = Math.round(parseFloat(bondRow.total_payout) * 100) / 100;
+      breakdown.bond.count   = parseInt(bondRow.count, 10);
+    }
 
     // FD: principal + maturity value — both come from assets table (not accounts)
     let fdPrincipal  = 0;

@@ -104,4 +104,22 @@ export const AuthController = {
     } catch (err) { next(err); }
   },
 
+  // ── Forgot / Reset Password ─────────────────────────────
+  async forgotPassword(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { email } = req.body;
+      await authService.initiatePasswordReset(email);
+      // Always return OK — do not leak whether the email exists
+      ok(res, { message: 'If that email is registered, an OTP has been sent.' });
+    } catch (err) { next(err); }
+  },
+
+  async resetPassword(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { email, otp, newPassword } = req.body;
+      await authService.resetPassword(email, otp, newPassword);
+      ok(res, { message: 'Password reset successfully. You can now log in.' });
+    } catch (err) { next(err); }
+  },
+
 };

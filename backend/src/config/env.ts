@@ -25,7 +25,6 @@ export const env = {
     user:     required('DB_USER'),
     password: required('DB_PASSWORD'),
     ssl:      optional('DB_SSL', 'true') === 'true',
-    poolMin:  parseInt(optional('DB_POOL_MIN', '2'), 10),
     poolMax:  parseInt(optional('DB_POOL_MAX', '10'), 10),
   },
 

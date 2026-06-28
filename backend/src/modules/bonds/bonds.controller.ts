@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { BondsService } from './bonds.service';
 import { ok, created, noContent } from '../../utils/response';
+import { p } from '../../utils/params';
 
 const bondsService = new BondsService();
 
@@ -14,7 +15,7 @@ export const BondsController = {
 
   async getOne(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const bond = await bondsService.getOne(req.params.id, req.user!.sub);
+      const bond = await bondsService.getOne(p(req.params.id), req.user!.sub);
       ok(res, { bond });
     } catch (err) { next(err); }
   },
@@ -28,35 +29,28 @@ export const BondsController = {
 
   async update(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const bond = await bondsService.update(req.params.id, req.user!.sub, req.body);
-      ok(res, { bond });
-    } catch (err) { next(err); }
-  },
-
-  async updatePrice(req: Request, res: Response, next: NextFunction): Promise<void> {
-    try {
-      const bond = await bondsService.updatePrice(req.params.id, req.user!.sub, req.body.currentPrice);
+      const bond = await bondsService.update(p(req.params.id), req.user!.sub, req.body);
       ok(res, { bond });
     } catch (err) { next(err); }
   },
 
   async remove(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      await bondsService.remove(req.params.id, req.user!.sub);
+      await bondsService.remove(p(req.params.id), req.user!.sub);
       noContent(res);
     } catch (err) { next(err); }
   },
 
   async addPayout(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const payout = await bondsService.addPayout(req.params['bondId'], req.user!.sub, req.body);
+      const payout = await bondsService.addPayout(p(req.params['bondId']), req.user!.sub, req.body);
       created(res, { payout });
     } catch (err) { next(err); }
   },
 
   async deletePayout(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      await bondsService.deletePayout(req.params['payoutId'], req.user!.sub);
+      await bondsService.deletePayout(p(req.params['payoutId']), req.user!.sub);
       noContent(res);
     } catch (err) { next(err); }
   },

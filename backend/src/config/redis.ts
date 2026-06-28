@@ -74,4 +74,5 @@ export const REDIS_KEYS = {
   rateLimit:    (ip: string)      => `pwms:rl:${ip}`,
   sessionMeta:  (userId: string)  => `pwms:session:${userId}`,
   registerOtp:  (email: string)   => `pwms:register_otp:${email.toLowerCase()}`,
+  passwordReset:(email: string)   => `pwms:pwd_reset:${email.toLowerCase()}`,
 };

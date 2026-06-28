@@ -25,8 +25,28 @@ app.use(helmet());
 app.set('trust proxy', 1);
 
 // ── CORS ─────────────────────────────────────────────────────
+// CORS_ORIGIN supports exact origins or wildcard subdomains (e.g. https://*.ahamsys.com)
+const allowedOrigins = env.cors.origin.split(',').map(o => o.trim());
+
+function buildOriginMatcher(pattern: string): (origin: string) => boolean {
+  if (pattern.includes('*')) {
+    const escaped = pattern.replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace('\\*', '[^.]+');
+    const re = new RegExp(`^${escaped}$`);
+    return (o) => re.test(o);
+  }
+  return (o) => o === pattern;
+}
+
+const matchers = allowedOrigins.map(buildOriginMatcher);
+
 app.use(cors({
-  origin: env.cors.origin,
+  origin: (origin, callback) => {
+    // allow non-browser requests (curl, mobile, SSR) and same-origin
+    if (!origin) return callback(null, true);
+    if (matchers.some(m => m(origin))) return callback(null, true);
+    logger.warn('CORS blocked', { origin });
+    callback(new Error(`CORS policy does not allow origin: ${origin}`));
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],

@@ -13,6 +13,8 @@ import {
   mfaDisableSchema,
   initiateRegisterSchema,
   verifyRegisterOtpSchema,
+  forgotPasswordSchema,
+  resetPasswordSchema,
 } from './auth.schemas';
 import { env } from '../../config/env';
 
@@ -31,6 +33,8 @@ router.post('/register/initiate', authLimiter, validate(initiateRegisterSchema),
 router.post('/register/verify',   authLimiter, validate(verifyRegisterOtpSchema), AuthController.verifyRegisterOtp);
 router.post('/register',          authLimiter, validate(registerSchema),          AuthController.register); // legacy
 router.post('/login',             authLimiter, validate(loginSchema),             AuthController.login);
+router.post('/password/forgot',   authLimiter, validate(forgotPasswordSchema),   AuthController.forgotPassword);
+router.post('/password/reset',    authLimiter, validate(resetPasswordSchema),    AuthController.resetPassword);
 router.post('/refresh',               validate(refreshSchema),  AuthController.refresh);
 router.post('/logout',                validate(logoutSchema),   AuthController.logout);
 

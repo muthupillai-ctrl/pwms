@@ -6,7 +6,7 @@ import { TotpService } from './totp.service';
 import { AppError } from '../../middleware/errorHandler';
 import { logger } from '../../utils/logger';
 import { redis, REDIS_KEYS } from '../../config/redis';
-import { sendOtpEmail } from './email.service';
+import { sendOtpEmail, sendPasswordResetEmail } from './email.service';
 
 const BCRYPT_ROUNDS = 12;
 const OTP_TTL_SECONDS = 600; // 10 minutes
@@ -69,7 +69,8 @@ export class AuthService {
 
     logger.info('User registered', { userId: user.id, email: user.email });
     const tokens = await this.issueTokens(user, undefined, undefined, true);
-    return { user, tokens };
+    const { password_hash, mfa_secret, ...safeUser } = user;
+    return { user: safeUser as Omit<UserRow, 'password_hash' | 'mfa_secret'>, tokens };
   }
 
   // ── Login ────────────────────────────────────────────────
@@ -111,7 +112,8 @@ export class AuthService {
 
     const tokens = await this.issueTokens(user, userAgent, ip, true);
     logger.info('Login: success', { userId: user.id });
-    return { user, tokens, mfaRequired: false };
+    const { password_hash, mfa_secret, ...safeUser } = user;
+    return { user: safeUser as Omit<UserRow, 'password_hash' | 'mfa_secret'>, tokens, mfaRequired: false };
   }
 
   // ── MFA Verify ───────────────────────────────────────────
@@ -275,6 +277,75 @@ export class AuthService {
 
     const tokens = await this.issueTokens(user, userAgent, ip, true);
     return { user, tokens };
+  }
+
+  // ── Forgot / Reset Password ──────────────────────────────
+  async initiatePasswordReset(email: string): Promise<void> {
+    const normalised = email.toLowerCase();
+
+    const user = await queryOne<{ id: string; full_name: string }>(
+      'SELECT id, full_name FROM users WHERE email = $1 AND is_active = TRUE',
+      [normalised]
+    );
+
+    // Always resolve OK — do not reveal whether the email exists
+    if (!user) {
+      logger.info('Password reset requested for unknown/inactive email', { email: normalised });
+      return;
+    }
+
+    const otp = String(Math.floor(100000 + Math.random() * 900000));
+    logger.debug('initiatePasswordReset: OTP generated', { email: normalised, otp });
+
+    const payload = { otp, attempts: 0, fullName: user.full_name };
+    await redis.setJSON(REDIS_KEYS.passwordReset(normalised), payload, OTP_TTL_SECONDS);
+    await sendPasswordResetEmail(normalised, otp, user.full_name);
+    logger.info('Password reset OTP sent', { email: normalised });
+  }
+
+  async resetPassword(email: string, otp: string, newPassword: string): Promise<void> {
+    const normalised = email.toLowerCase();
+    const key = REDIS_KEYS.passwordReset(normalised);
+
+    logger.debug('resetPassword: start', { email: normalised, key });
+
+    const payload = await redis.getJSON<{ otp: string; attempts: number; fullName: string }>(key);
+    logger.debug('resetPassword: Redis payload', { found: !!payload, attempts: payload?.attempts });
+    if (!payload) throw new AppError(400, 'OTP_EXPIRED', 'OTP has expired. Please request a new one.');
+
+    logger.debug('resetPassword: OTP check', {
+      receivedOtp: otp,
+      storedOtp: payload.otp,
+      match: payload.otp === otp,
+    });
+
+    payload.attempts += 1;
+    if (payload.otp !== otp) {
+      if (payload.attempts >= MAX_OTP_ATTEMPTS) {
+        await redis.del(key);
+        throw new AppError(400, 'OTP_INVALID', 'Too many wrong attempts. Please request a new OTP.');
+      }
+      await redis.setJSON(key, payload, OTP_TTL_SECONDS);
+      throw new AppError(400, 'OTP_INVALID', `Invalid OTP. ${MAX_OTP_ATTEMPTS - payload.attempts} attempt(s) remaining.`);
+    }
+
+    const passwordHash = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
+    logger.debug('resetPassword: hashed new password', { hashPrefix: passwordHash.substring(0, 10) });
+
+    const updated = await query<{ id: string; email: string }>(
+      'UPDATE users SET password_hash = $1, updated_at = NOW() WHERE email = $2 RETURNING id, email',
+      [passwordHash, normalised]
+    );
+
+    logger.debug('resetPassword: DB update result', { rowsUpdated: updated.length, updatedEmail: updated[0]?.email });
+
+    if (updated.length === 0) {
+      logger.error('resetPassword: UPDATE affected 0 rows — email not found in DB', { normalised });
+      throw new AppError(404, 'NOT_FOUND', 'User not found.');
+    }
+
+    await redis.del(key);
+    logger.info('Password reset successful', { email: normalised, userId: updated[0].id });
   }
 
   // ── Private ──────────────────────────────────────────────
