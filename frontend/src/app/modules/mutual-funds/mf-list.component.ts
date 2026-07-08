@@ -428,7 +428,7 @@ export class MfTxnDialogComponent {
     .page-title { font-size:1.125rem;font-weight:700;color:#0F172A; }
 
     /* ── Main table ── */
-    .table-wrap { background:white;border:1px solid #E2E8F0;border-radius:12px;overflow:hidden; }
+    .table-wrap { background:white;border:1px solid #E2E8F0;border-radius:12px;overflow-x:auto; }
     table { width:100%;border-collapse:collapse; }
     th {
       text-align:left;padding:10px 14px;

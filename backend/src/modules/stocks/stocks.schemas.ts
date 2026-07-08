@@ -1,4 +1,5 @@
 import Joi from 'joi';
+import { saneIsoDate } from '../../utils/validators';
 
 export const createStockSchema = Joi.object({
   accountId:     Joi.string().uuid().optional(),
@@ -6,7 +7,7 @@ export const createStockSchema = Joi.object({
   name:          Joi.string().min(1).max(255).trim().required(),
   units:         Joi.number().positive().precision(6).required(),
   purchasePrice: Joi.number().positive().precision(4).required(),
-  purchaseDate:  Joi.string().isoDate().optional(),
+  purchaseDate:  saneIsoDate.optional(),
   currentPrice:  Joi.number().positive().precision(4).optional(),
   notes:         Joi.string().max(2000).trim().optional(),
   meta:          Joi.object().default({}),

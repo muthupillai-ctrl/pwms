@@ -449,6 +449,8 @@ export class BondFormDialogComponent {
 
     /* Column grid: icon | name | purchase | expiry | investment | tds | interest | total | actions */
     .col-grid { display:grid;grid-template-columns:28px minmax(140px,1fr) 106px 106px 118px 78px 128px 108px 76px;align-items:center;gap:0; }
+    .table-wrap { overflow-x:auto; }
+    .table-wrap .col-grid { min-width:888px; }
 
     /* Column header row */
     .col-hdr { padding:8px 14px;background:#F8FAFC;border:1px solid #E2E8F0;border-radius:12px;margin-bottom:8px; }
@@ -551,8 +553,11 @@ export class BondFormDialogComponent {
         <p>No bond holdings yet. Click <strong>Add Bond</strong> to get started.</p>
       </div>
 
+      <!-- Bond list (horizontally scrollable on narrow screens) -->
+      <div class="table-wrap" *ngIf="bonds.length > 0">
+
       <!-- Column header -->
-      <div *ngIf="bonds.length > 0" class="col-hdr col-grid">
+      <div class="col-hdr col-grid">
         <div></div>
         <div class="th">Bond</div>
         <div class="th">Purchase Date</div>
@@ -650,6 +655,8 @@ export class BondFormDialogComponent {
             </tbody>
           </table>
         </div>
+
+      </div>
 
       </div>
 

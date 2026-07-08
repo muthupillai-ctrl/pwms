@@ -1,4 +1,5 @@
 import Joi from 'joi';
+import { saneIsoDate } from '../../utils/validators';
 
 const COMPOUNDING = ['monthly', 'quarterly', 'half_yearly', 'annually'] as const;
 
@@ -8,8 +9,8 @@ export const createLoanSchema = Joi.object({
   amount:        Joi.number().positive().precision(2).required(),
   interestRate:  Joi.number().min(0).max(100).precision(4).default(0),
   compounding:   Joi.string().valid(...COMPOUNDING).default('monthly'),
-  loanDate:      Joi.string().isoDate().required(),
-  dueDate:       Joi.string().isoDate().optional(),
+  loanDate:      saneIsoDate.required(),
+  dueDate:       saneIsoDate.optional(),
   loanType:      Joi.string().valid('personal', 'business', 'other').default('personal'),
   currency:      Joi.string().length(3).uppercase().default('INR'),
   notes:         Joi.string().max(2000).trim().optional(),
@@ -20,7 +21,7 @@ export const updateLoanSchema = Joi.object({
   borrowerEmail: Joi.string().email().lowercase().trim().allow('', null),
   interestRate:  Joi.number().min(0).max(100).precision(4),
   compounding:   Joi.string().valid(...COMPOUNDING),
-  dueDate:       Joi.string().isoDate().allow(null),
+  dueDate:       saneIsoDate.allow(null),
   loanType:      Joi.string().valid('personal', 'business', 'other'),
   notes:         Joi.string().max(2000).trim().allow('', null),
   isActive:      Joi.boolean(),
@@ -32,7 +33,7 @@ export const recordRepaymentSchema = Joi.object({
 });
 
 export const addRepaymentSchema = Joi.object({
-  repaymentDate: Joi.string().isoDate().required(),
+  repaymentDate: saneIsoDate.required(),
   amountPaid:    Joi.number().positive().precision(2).required(),
   notes:         Joi.string().max(2000).trim().allow('', null).optional(),
 });

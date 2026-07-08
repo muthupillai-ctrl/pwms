@@ -1,4 +1,5 @@
 import Joi from 'joi';
+import { saneIsoDate } from '../../utils/validators';
 
 export const createFundSchema = Joi.object({
   name:       Joi.string().min(1).max(255).trim().required(),
@@ -19,6 +20,6 @@ export const addTransactionSchema = Joi.object({
   nav:     Joi.number().positive().precision(4).required(),
   amount:  Joi.number().positive().precision(2).required(),
   type:    Joi.string().valid('purchase', 'redemption').default('purchase'),
-  txnDate: Joi.string().isoDate().required(),
+  txnDate: saneIsoDate.required(),
   notes:   Joi.string().max(2000).trim().optional(),
 });
