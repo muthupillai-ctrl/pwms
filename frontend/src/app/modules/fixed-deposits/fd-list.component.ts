@@ -86,6 +86,10 @@ function calcMaturity(
     .fg:last-child { margin-bottom:0; }
     .r2  { display:grid;grid-template-columns:1fr 1fr;gap:8px; }
 
+    @media (max-width: 480px) {
+      .r2 { grid-template-columns: 1fr; }
+    }
+
     label { font-size:.6875rem;font-weight:600;color:#374151;display:block;margin-bottom:3px; }
     label .opt { color:#9CA3AF;font-weight:400; }
     label .req { color:#EF4444; }
@@ -426,6 +430,8 @@ export class FdFormDialogComponent implements OnDestroy {
     .stat-val   { font-size:1.5rem;font-weight:700;letter-spacing:-.5px;color:#0F172A; }
     .stat-val.green  { color:#16A34A; }
     .stat-val.purple { color:#7C3AED; }
+    @media (max-width: 640px) { .stats-grid { grid-template-columns: repeat(2,1fr); } }
+    @media (max-width: 400px) { .stats-grid { grid-template-columns: 1fr; } }
 
     .card-header { display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:8px; }
 

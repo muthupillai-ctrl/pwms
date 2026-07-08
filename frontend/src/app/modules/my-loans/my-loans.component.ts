@@ -104,7 +104,7 @@ interface LoanRepayment {
     .dg-val.amber { color:#B45309; }
     .dg-val.green { color:#16A34A; }
 
-    .repay-wrap { padding:12px 14px; }
+    .repay-wrap { padding:12px 14px;overflow-x:auto; }
     .repay-empty { text-align:center;padding:24px;color:#94A3B8;font-size:.875rem; }
     .repay-spinner { display:flex;justify-content:center;padding:24px; }
     table { width:100%;border-collapse:collapse;font-size:.8125rem; }
@@ -115,6 +115,19 @@ interface LoanRepayment {
     td.amber { color:#B45309;font-weight:600; }
 
     .spinner-wrap { display:flex;justify-content:center;padding:80px; }
+
+    @media (max-width: 640px) {
+      .top-bar { padding:0 16px; }
+      .page { padding:16px 12px; }
+      .stat-row { grid-template-columns: repeat(2, 1fr); gap:8px; }
+      .details-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 420px) {
+      .stat-row { grid-template-columns: 1fr; }
+      .details-grid { grid-template-columns: 1fr; }
+      .outstanding-box { text-align:left; }
+      .loan-hdr { flex-wrap: wrap; }
+    }
   `],
   template: `
     <div class="top-bar">

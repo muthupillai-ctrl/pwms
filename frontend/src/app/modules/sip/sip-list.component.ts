@@ -58,6 +58,11 @@ const FORM_STYLES = `
   .ferr { font-size:.75rem;color:#EF4444; }
   .r2 { display:grid;grid-template-columns:1fr 1fr;gap:8px; }
   .r3 { display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px; }
+
+  @media (max-width: 480px) {
+    .r2, .r3 { grid-template-columns: 1fr; }
+  }
+
   .pfx { position:relative; }
   .pfx .sym { position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:.8125rem;color:#6B7280;pointer-events:none; }
   .pfx input.fi { padding-left:22px; }
@@ -275,6 +280,8 @@ export class SipDialogComponent implements OnInit, OnDestroy {
     .stat-lbl   { font-size:.75rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:#64748B;margin-bottom:6px; }
     .stat-val   { font-size:1.5rem;font-weight:700;letter-spacing:-.5px;color:#0F172A; }
     .stat-val.green  { color:#16A34A; }
+    @media (max-width: 768px) { .stats-row { grid-template-columns: repeat(2,1fr); } }
+    @media (max-width: 400px) { .stats-row { grid-template-columns: 1fr; } }
     .stat-val.red    { color:#DC2626; }
     .stat-val.purple { color:#7C3AED; }
 

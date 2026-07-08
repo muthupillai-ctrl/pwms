@@ -60,6 +60,11 @@ const FORM_STYLES = `
   .fg { display:flex;flex-direction:column;gap:2px;margin-bottom:8px; }
   .fg:last-child { margin-bottom:0; }
   .r2 { display:grid;grid-template-columns:1fr 1fr;gap:8px; }
+
+  @media (max-width: 480px) {
+    .r2 { grid-template-columns: 1fr; }
+  }
+
   label { font-size:.6875rem;font-weight:600;color:#374151;display:block;margin-bottom:3px; }
   label .opt { color:#9CA3AF;font-weight:400; }
   label .req { color:#EF4444; }
@@ -415,6 +420,8 @@ export class MfTxnDialogComponent {
     .stat-val.cyan  { color:#0891B2; }
     .stat-val.green { color:#16A34A; }
     .stat-val.red   { color:#DC2626; }
+    @media (max-width: 640px) { .stats-row { grid-template-columns: repeat(2,1fr); } }
+    @media (max-width: 400px) { .stats-row { grid-template-columns: 1fr; } }
 
     /* ── Page header ── */
     .page-hdr   { display:flex;align-items:center;justify-content:space-between;margin-bottom:16px; }

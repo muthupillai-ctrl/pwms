@@ -60,6 +60,19 @@ const TYPE_BADGE: Record<string, string> = {
       position: relative;
       overflow: hidden;
     }
+
+    @media (max-width: 768px) {
+      .hero { padding: 20px 18px 18px; border-radius: 12px; }
+      .hero-amount { font-size: 2rem; }
+      .hero-stats { grid-template-columns: 1fr 1fr; }
+      .grid-2 { grid-template-columns: 1fr; }
+      .loans-taken-summary { grid-template-columns: 1fr 1fr; }
+    }
+
+    @media (max-width: 480px) {
+      .hero-stats { grid-template-columns: 1fr; }
+      .loans-taken-summary { grid-template-columns: 1fr; }
+    }
     .hero::before {
       content: '';
       position: absolute;

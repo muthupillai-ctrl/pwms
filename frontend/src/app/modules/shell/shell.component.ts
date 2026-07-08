@@ -1,11 +1,14 @@
-import { Component, OnInit, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectionStrategy, ChangeDetectorRef, ViewChild } from '@angular/core';
 import { NgFor, NgIf } from '@angular/common';
 import { Router, RouterOutlet, RouterLink, RouterLinkActive, NavigationEnd } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { MatTooltipModule } from '@angular/material/tooltip';
+import { MatSidenavModule, MatSidenav } from '@angular/material/sidenav';
+import { BreakpointObserver } from '@angular/cdk/layout';
 import { AuthService } from '../../core/services/auth.service';
-import { filter } from 'rxjs/operators';
+import { filter, takeUntil } from 'rxjs/operators';
+import { Subject } from 'rxjs';
 
 interface NavChild { path: string; label: string; }
 interface NavItem  { path?: string; label: string; icon: string; children?: NavChild[]; }
@@ -36,6 +39,12 @@ const NAV: NavGroup[] = [
       { path: '/sip', label: 'SIP', icon: 'autorenew' },
     ],
   },
+  {
+    section: 'Income',
+    items: [
+      { path: '/expected-income', label: 'Expected Income', icon: 'payments' },
+    ],
+  },
 ];
 
 const LOAN_PATHS = ['/loans', '/loans-taken'];
@@ -44,18 +53,22 @@ const LOAN_PATHS = ['/loans', '/loans-taken'];
   selector: 'app-shell',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [NgFor, NgIf, RouterOutlet, RouterLink, RouterLinkActive, MatIconModule, MatButtonModule, MatTooltipModule],
+  imports: [NgFor, NgIf, RouterOutlet, RouterLink, RouterLinkActive,
+    MatIconModule, MatButtonModule, MatTooltipModule, MatSidenavModule],
   styles: [`
-    :host { display: flex; height: 100vh; overflow: hidden; }
+    .sidenav-container {
+      height: 100vh;
+      background: #F1F5F9;
+    }
 
     .sidebar {
       width: 256px;
-      min-width: 256px;
       background: #0F172A;
       display: flex;
       flex-direction: column;
       overflow-y: auto;
       scrollbar-width: none;
+      border-right: none;
     }
     .sidebar::-webkit-scrollbar { display: none; }
 
@@ -112,7 +125,6 @@ const LOAN_PATHS = ['/loans', '/loans-taken'];
     .nav-item.active   { background: rgba(59,130,246,0.18);  color: #60A5FA; }
     .nav-item.active mat-icon { color: #60A5FA; }
 
-    /* Parent item with children */
     .nav-parent {
       display: flex;
       align-items: center;
@@ -142,7 +154,6 @@ const LOAN_PATHS = ['/loans', '/loans-taken'];
     }
     .expand-icon.open { transform: rotate(180deg); }
 
-    /* Sub-menu children */
     .nav-children {
       overflow: hidden;
       max-height: 0;
@@ -210,10 +221,9 @@ const LOAN_PATHS = ['/loans', '/loans-taken'];
     .logout-btn:hover { color: rgba(255,255,255,0.75) !important; }
 
     .main {
-      flex: 1;
       display: flex;
       flex-direction: column;
-      overflow: hidden;
+      height: 100%;
       background: #F1F5F9;
     }
 
@@ -229,115 +239,144 @@ const LOAN_PATHS = ['/loans', '/loans-taken'];
       flex-shrink: 0;
     }
 
+    .menu-btn { margin-left: -8px; color: #0F172A !important; }
+
     .topbar-title   { font-size: 0.9375rem; font-weight: 600; color: #0F172A; }
     .topbar-divider { width: 1px; height: 20px; background: #E2E8F0; }
     .topbar-sub     { font-size: 0.8125rem; color: #94A3B8; }
     .flex-spacer    { flex: 1 1 auto; }
 
     .content { flex: 1; overflow-y: auto; padding: 24px; }
+
+    @media (max-width: 768px) {
+      .topbar { padding: 0 16px; gap: 8px; }
+      .topbar-divider { display: none; }
+      .topbar-sub { display: none; }
+      .content { padding: 16px; }
+    }
   `],
   template: `
-    <aside class="sidebar">
-      <div class="brand">
-        <div class="brand-logo"><mat-icon>account_balance_wallet</mat-icon></div>
-        <div class="brand-text">
-          <div class="name">PWMS</div>
-          <div class="tagline">Wealth Manager</div>
+    <mat-sidenav-container class="sidenav-container">
+
+      <mat-sidenav #sidenav class="sidebar"
+        [mode]="isMobile ? 'over' : 'side'"
+        [opened]="!isMobile">
+
+        <div class="brand">
+          <div class="brand-logo"><mat-icon>account_balance_wallet</mat-icon></div>
+          <div class="brand-text">
+            <div class="name">PWMS</div>
+            <div class="tagline">Wealth Manager</div>
+          </div>
         </div>
-      </div>
 
-      <nav class="nav-groups">
-        <div *ngFor="let group of navGroups">
-          <div class="nav-section-label">{{ group.section }}</div>
+        <nav class="nav-groups">
+          <div *ngFor="let group of navGroups">
+            <div class="nav-section-label">{{ group.section }}</div>
 
-          <ng-container *ngFor="let item of group.items">
-            <!-- Leaf nav item -->
-            <a
-              *ngIf="!item.children"
-              class="nav-item"
-              [routerLink]="item.path"
-              routerLinkActive="active"
-            >
-              <mat-icon>{{ item.icon }}</mat-icon>
-              {{ item.label }}
-            </a>
-
-            <!-- Parent nav item with children -->
-            <ng-container *ngIf="item.children">
-              <div
-                class="nav-parent"
-                [class.parent-active]="loansOpen"
-                (click)="toggleLoans()"
+            <ng-container *ngFor="let item of group.items">
+              <a
+                *ngIf="!item.children"
+                class="nav-item"
+                [routerLink]="item.path"
+                routerLinkActive="active"
+                (click)="onNavClick()"
               >
                 <mat-icon>{{ item.icon }}</mat-icon>
                 {{ item.label }}
-                <mat-icon class="expand-icon" [class.open]="loansOpen">expand_more</mat-icon>
-              </div>
-              <div class="nav-children" [class.open]="loansOpen">
-                <a
-                  *ngFor="let child of item.children"
-                  class="nav-child"
-                  [routerLink]="child.path"
-                  routerLinkActive="active"
+              </a>
+
+              <ng-container *ngIf="item.children">
+                <div
+                  class="nav-parent"
+                  [class.parent-active]="loansOpen"
+                  (click)="toggleLoans()"
                 >
-                  <span class="child-dot"></span>
-                  {{ child.label }}
-                </a>
-              </div>
+                  <mat-icon>{{ item.icon }}</mat-icon>
+                  {{ item.label }}
+                  <mat-icon class="expand-icon" [class.open]="loansOpen">expand_more</mat-icon>
+                </div>
+                <div class="nav-children" [class.open]="loansOpen">
+                  <a
+                    *ngFor="let child of item.children"
+                    class="nav-child"
+                    [routerLink]="child.path"
+                    routerLinkActive="active"
+                    (click)="onNavClick()"
+                  >
+                    <span class="child-dot"></span>
+                    {{ child.label }}
+                  </a>
+                </div>
+              </ng-container>
             </ng-container>
-          </ng-container>
-        </div>
-
-        <ng-container *ngIf="isAdmin">
-          <div class="nav-section-label" style="margin-top:8px">System</div>
-          <a class="nav-item" routerLink="/admin" routerLinkActive="active"
-            style="color:rgba(245,158,11,0.7)"
-            [style.background]="'rgba(245,158,11,0.08)'">
-            <mat-icon style="color:rgba(245,158,11,0.7)">admin_panel_settings</mat-icon>
-            Admin Panel
-          </a>
-        </ng-container>
-      </nav>
-
-      <div class="user-section">
-        <div class="user-row">
-          <div class="user-avatar">{{ userInitial }}</div>
-          <div class="user-info">
-            <div class="user-name">{{ userName }}</div>
-            <div class="user-role">{{ userEmail }}</div>
           </div>
-          <button mat-icon-button class="logout-btn" (click)="logout()" matTooltip="Sign out">
-            <mat-icon style="font-size:18px;width:18px;height:18px">logout</mat-icon>
-          </button>
-        </div>
-      </div>
-    </aside>
 
-    <div class="main">
-      <header class="topbar">
-        <span class="topbar-title">Personal Wealth Management</span>
-        <div class="topbar-divider"></div>
-        <span class="topbar-sub">Track · Manage · Grow</span>
-        <span class="flex-spacer"></span>
-      </header>
-      <div class="content">
-        <router-outlet />
-      </div>
-    </div>
+          <ng-container *ngIf="isAdmin">
+            <div class="nav-section-label" style="margin-top:8px">System</div>
+            <a class="nav-item" routerLink="/admin" routerLinkActive="active"
+              style="color:rgba(245,158,11,0.7)"
+              [style.background]="'rgba(245,158,11,0.08)'"
+              (click)="onNavClick()">
+              <mat-icon style="color:rgba(245,158,11,0.7)">admin_panel_settings</mat-icon>
+              Admin Panel
+            </a>
+          </ng-container>
+        </nav>
+
+        <div class="user-section">
+          <div class="user-row">
+            <div class="user-avatar">{{ userInitial }}</div>
+            <div class="user-info">
+              <div class="user-name">{{ userName }}</div>
+              <div class="user-role">{{ userEmail }}</div>
+            </div>
+            <button mat-icon-button class="logout-btn" (click)="logout()" matTooltip="Sign out">
+              <mat-icon style="font-size:18px;width:18px;height:18px">logout</mat-icon>
+            </button>
+          </div>
+        </div>
+
+      </mat-sidenav>
+
+      <mat-sidenav-content>
+        <div class="main">
+          <header class="topbar">
+            <button *ngIf="isMobile" mat-icon-button class="menu-btn" (click)="sidenav.toggle()">
+              <mat-icon>menu</mat-icon>
+            </button>
+            <span class="topbar-title">Personal Wealth Management</span>
+            <div class="topbar-divider"></div>
+            <span class="topbar-sub">Track · Manage · Grow</span>
+            <span class="flex-spacer"></span>
+          </header>
+          <div class="content">
+            <router-outlet />
+          </div>
+        </div>
+      </mat-sidenav-content>
+
+    </mat-sidenav-container>
   `,
 })
-export class ShellComponent implements OnInit {
+export class ShellComponent implements OnInit, OnDestroy {
+  @ViewChild('sidenav') sidenav!: MatSidenav;
+
   readonly navGroups = NAV;
   readonly isAdmin: boolean;
   readonly userName: string;
   readonly userEmail: string;
   readonly userInitial: string;
   loansOpen = false;
+  isMobile = false;
+
+  private destroy$ = new Subject<void>();
 
   constructor(
     private authService: AuthService,
     private router: Router,
     private cdr: ChangeDetectorRef,
+    private breakpointObserver: BreakpointObserver,
   ) {
     this.isAdmin   = authService.isAdmin();
     this.userName  = authService.getName() || authService.getTokenPayload()?.email?.split('@')[0] || 'My Account';
@@ -346,14 +385,26 @@ export class ShellComponent implements OnInit {
   }
 
   ngOnInit(): void {
-    // Auto-expand Loans when on a loans route
+    this.breakpointObserver.observe('(max-width: 768px)')
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(state => {
+        this.isMobile = state.matches;
+        this.cdr.markForCheck();
+      });
+
     this.syncLoansOpen(this.router.url);
     this.router.events.pipe(
-      filter(e => e instanceof NavigationEnd)
+      filter(e => e instanceof NavigationEnd),
+      takeUntil(this.destroy$),
     ).subscribe((e: any) => {
       this.syncLoansOpen(e.urlAfterRedirects ?? e.url);
       this.cdr.markForCheck();
     });
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
   }
 
   private syncLoansOpen(url: string): void {
@@ -364,6 +415,12 @@ export class ShellComponent implements OnInit {
 
   toggleLoans(): void {
     this.loansOpen = !this.loansOpen;
+  }
+
+  onNavClick(): void {
+    if (this.isMobile && this.sidenav) {
+      this.sidenav.close();
+    }
   }
 
   logout(): void {

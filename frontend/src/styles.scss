@@ -218,6 +218,11 @@ html, body {
   overflow: hidden;
 }
 
+// Clamp dialog width so fixed-px dialog configs (440-520px) don't overflow small viewports
+.cdk-overlay-pane.pwms-dialog {
+  max-width: 95vw !important;
+}
+
 button.mat-mdc-raised-button,
 button.mat-mdc-flat-button {
   border-radius: 8px;
@@ -233,4 +238,25 @@ button.mat-mdc-flat-button {
   justify-content: center;
   align-items: center;
   padding: 80px 0;
+}
+
+// ── Responsive breakpoints ───────────────────────────────────
+@media (max-width: 768px) {
+  .page-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+
+  .page-content { gap: 12px; }
+
+  .card { padding: 16px; }
+
+  .card-header { flex-wrap: wrap; gap: 8px; }
+}
+
+@media (max-width: 480px) {
+  .page-title  { font-size: 1.25rem; }
+  .stat-value  { font-size: 1.5rem; }
 }

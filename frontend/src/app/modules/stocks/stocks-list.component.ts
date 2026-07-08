@@ -61,6 +61,10 @@ interface DialogData { stock: StockRow | null; }
     .fg:last-child { margin-bottom:0; }
     .r2 { display:grid;grid-template-columns:1fr 1fr;gap:8px; }
 
+    @media (max-width: 480px) {
+      .r2 { grid-template-columns: 1fr; }
+    }
+
     label { font-size:.6875rem;font-weight:600;color:#374151;display:block;margin-bottom:3px; }
     label .opt { color:#9CA3AF;font-weight:400; }
     label .req { color:#EF4444; }
@@ -420,6 +424,8 @@ export class StockPriceDialogComponent {
     .stat-lbl   { font-size:.75rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:#64748B;margin-bottom:6px; }
     .stat-val   { font-size:1.5rem;font-weight:700;letter-spacing:-.5px;color:#0F172A; }
     .stat-val.green  { color:#16A34A; }
+    @media (max-width: 768px) { .stats-row { grid-template-columns: repeat(2,1fr); } }
+    @media (max-width: 400px) { .stats-row { grid-template-columns: 1fr; } }
     .stat-val.red    { color:#DC2626; }
     .stat-val.emerald { color:#059669; }
 

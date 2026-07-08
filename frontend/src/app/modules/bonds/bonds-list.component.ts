@@ -86,6 +86,10 @@ const FORM_STYLES = [`
   .r2 { display:grid;grid-template-columns:1fr 1fr;gap:8px; }
   .r3 { display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px; }
 
+  @media (max-width: 480px) {
+    .r2, .r3 { grid-template-columns: 1fr; }
+  }
+
   label { font-size:.6875rem;font-weight:600;color:#374151;display:block;margin-bottom:3px; }
   label .opt { color:#9CA3AF;font-weight:400; }
   label .req { color:#EF4444; }
@@ -432,6 +436,9 @@ export class BondFormDialogComponent {
     .stat-lbl   { font-size:.75rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:#64748B;margin-bottom:6px; }
     .stat-val   { font-size:1.5rem;font-weight:700;letter-spacing:-.5px;color:#0F172A; }
     .stat-val.amber { color:#B45309; }
+    @media (max-width: 900px) { .stats-row { grid-template-columns: repeat(3,1fr); } }
+    @media (max-width: 640px) { .stats-row { grid-template-columns: repeat(2,1fr); } }
+    @media (max-width: 400px) { .stats-row { grid-template-columns: 1fr; } }
     .stat-val.green { color:#16A34A; }
     .stat-val.blue  { color:#1D4ED8; }
     .stat-val.red   { color:#DC2626; }
@@ -482,10 +489,6 @@ export class BondFormDialogComponent {
     .ptable th { text-align:left;padding:5px 12px;font-size:.625rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#94A3B8;border-bottom:1px solid #E2E8F0;background:#F1F5F9; }
     .ptable td { padding:6px 12px;border-bottom:1px solid #F1F5F9;font-size:.8125rem;color:#374151; }
     .ptable tr:last-child td { border-bottom:none; }
-    .ptable tr.past td { color:#C4CAD4; }
-    .ptable tr.past .freq-badge { background:#F3F4F6;color:#C4CAD4; }
-    .ptable tr.past .tds-badge  { background:#F3F4F6;color:#C4CAD4; }
-    .ptable tr.past .total-green { color:#C4CAD4; }
 
     .freq-badge  { display:inline-flex;padding:1px 7px;border-radius:20px;font-size:.625rem;font-weight:600;background:#EFF6FF;color:#1D4ED8;white-space:nowrap; }
     .tds-badge   { display:inline-flex;padding:1px 7px;border-radius:20px;font-size:.625rem;font-weight:600;background:#FEF2F2;color:#B91C1C;white-space:nowrap;font-family:monospace; }
@@ -626,7 +629,7 @@ export class BondFormDialogComponent {
               </tr>
             </thead>
             <tbody>
-              <tr *ngFor="let p of b.payouts; let first = first" [class.past]="p.payout_date < today">
+              <tr *ngFor="let p of b.payouts; let first = first" [style.opacity]="isPast(p.payout_date) ? '0.4' : '1'">
                 <td class="mono">{{ p.payout_date | date:'d MMM y' }}</td>
                 <td><span class="freq-badge">{{ freqLabel(p.frequency) }}</span></td>
                 <td class="mono">{{ p.interest_payout | currency:'INR':'symbol-narrow':'1.2-2' }}</td>
@@ -712,6 +715,10 @@ export class BondsListComponent implements OnInit {
   }
 
   freqLabel(freq: string): string { return FREQ_LABELS[freq] ?? freq; }
+
+  isPast(payoutDate: string): boolean {
+    return payoutDate.slice(0, 10) < this.today;
+  }
 
   openAdd(): void {
     this.dialog.open(BondFormDialogComponent, {

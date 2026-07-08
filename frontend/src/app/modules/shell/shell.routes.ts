@@ -42,6 +42,10 @@ export const shellRoutes: Routes = [
         path: 'sip',
         loadChildren: () => import('../sip/sip.routes').then(m => m.SIP_ROUTES),
       },
+      {
+        path: 'expected-income',
+        loadChildren: () => import('../expected-income/expected-income.routes').then(m => m.EXPECTED_INCOME_ROUTES),
+      },
     ],
   },
 ];

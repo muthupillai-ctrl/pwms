@@ -119,6 +119,10 @@ interface DialogData { account: Account | null; }
     .fg:last-child { margin-bottom: 0; }
     .r2  { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 
+    @media (max-width: 480px) {
+      .r2 { grid-template-columns: 1fr; }
+    }
+
     label {
       font-size: .6875rem; font-weight: 600; color: #374151;
       display: block; margin-bottom: 3px;
@@ -408,6 +412,13 @@ export class AccountFormDialogComponent implements OnInit {
 
     /* ── Stats ──────────────────────────────── */
     .stats-row { display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px; }
+
+    @media (max-width: 640px) {
+      .stats-row { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 400px) {
+      .stats-row { grid-template-columns: 1fr; }
+    }
     .stat-card { background:white;border:1px solid #E2E8F0;border-radius:12px;padding:18px 20px; }
     .stat-label { font-size:.75rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:#64748B;margin-bottom:6px; }
     .stat-val   { font-size:1.5rem;font-weight:700;letter-spacing:-.5px;color:#0F172A; }

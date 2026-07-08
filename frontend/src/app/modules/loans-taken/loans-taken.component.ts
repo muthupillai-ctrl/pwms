@@ -207,6 +207,7 @@ interface ApiResponse<T> { success: boolean; data: T; }
     .rep-loading { text-align: center; padding: 16px; color: #94A3B8; font-size: 0.8125rem; }
     .rep-empty   { font-size: 0.8125rem; color: #94A3B8; }
 
+    .table-wrap { overflow-x: auto; }
     table { width: 100%; border-collapse: collapse; font-size: 0.8125rem; }
     th {
       text-align: left; font-size: 0.625rem; font-weight: 700;
@@ -333,26 +334,28 @@ interface ApiResponse<T> { success: boolean; data: T; }
                 No repayments recorded yet.
               </div>
 
-              <table *ngIf="!repLoading[loan.id] && (repayments[loan.id] ?? []).length > 0">
-                <thead>
-                  <tr>
-                    <th>Date</th>
-                    <th>Amount Paid</th>
-                    <th>Principal</th>
-                    <th>Interest</th>
-                    <th>Notes</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr *ngFor="let r of repayments[loan.id]">
-                    <td>{{ r.repayment_date | date:'dd MMM yyyy' }}</td>
-                    <td>{{ r.amount_paid | currency:loan.currency:'symbol-narrow':'1.2-2' }}</td>
-                    <td>{{ r.principal   | currency:loan.currency:'symbol-narrow':'1.2-2' }}</td>
-                    <td>{{ r.interest    | currency:loan.currency:'symbol-narrow':'1.2-2' }}</td>
-                    <td>{{ r.notes ?? '—' }}</td>
-                  </tr>
-                </tbody>
-              </table>
+              <div class="table-wrap" *ngIf="!repLoading[loan.id] && (repayments[loan.id] ?? []).length > 0">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Date</th>
+                      <th>Amount Paid</th>
+                      <th>Principal</th>
+                      <th>Interest</th>
+                      <th>Notes</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr *ngFor="let r of repayments[loan.id]">
+                      <td>{{ r.repayment_date | date:'dd MMM yyyy' }}</td>
+                      <td>{{ r.amount_paid | currency:loan.currency:'symbol-narrow':'1.2-2' }}</td>
+                      <td>{{ r.principal   | currency:loan.currency:'symbol-narrow':'1.2-2' }}</td>
+                      <td>{{ r.interest    | currency:loan.currency:'symbol-narrow':'1.2-2' }}</td>
+                      <td>{{ r.notes ?? '—' }}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
 
               <div class="summary-row" *ngIf="!repLoading[loan.id] && (repayments[loan.id] ?? []).length > 0">
                 <span class="summary-item">Total paid: <strong>{{ totalPaid(loan.id) | currency:loan.currency:'symbol-narrow':'1.2-2' }}</strong></span>
