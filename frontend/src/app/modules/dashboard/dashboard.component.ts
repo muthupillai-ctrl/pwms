@@ -37,6 +37,16 @@ const TYPE_ICONS: Record<string, string> = {
   liability: 'credit_card', cash: 'payments', other: 'category',
 };
 
+// Compact Indian-scale currency (₹3.1Cr, ₹85L) - the full digit-grouped value
+// overflows the donut chart's center label on narrow screens.
+function formatCompactINR(n: number): string {
+  const abs = Math.abs(n);
+  if (abs >= 1_00_00_000) return '₹' + (n / 1_00_00_000).toFixed(2).replace(/\.?0+$/, '') + 'Cr';
+  if (abs >= 1_00_000)    return '₹' + (n / 1_00_000).toFixed(2).replace(/\.?0+$/, '') + 'L';
+  if (abs >= 1_000)       return '₹' + (n / 1_000).toFixed(1).replace(/\.?0+$/, '') + 'K';
+  return '₹' + n.toLocaleString('en-IN', { maximumFractionDigits: 0 });
+}
+
 const TYPE_BADGE: Record<string, string> = {
   bank: 'badge-blue', fixed_deposit: 'badge-purple', stocks: 'badge-green',
   mutual_fund: 'badge-cyan', bond: 'badge-amber', loan_given: 'badge-green',
@@ -482,7 +492,7 @@ export class DashboardComponent implements OnInit {
       total: { show: true, label: 'Total', fontSize: '13px', fontWeight: 600,
         formatter: (w: any) => {
           const t = (w.globals.seriesTotals as number[]).reduce((a, b) => a + b, 0);
-          return '₹' + t.toLocaleString('en-IN', { maximumFractionDigits: 0 });
+          return formatCompactINR(t);
         }
       }
     }}}},

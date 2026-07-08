@@ -457,7 +457,10 @@ export class BondFormDialogComponent {
     .th { font-size:.625rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#94A3B8; }
 
     /* Bond cards */
-    .bond-card { background:white;border:1px solid #E2E8F0;border-radius:12px;overflow:hidden;margin-bottom:10px; }
+    /* overflow intentionally not hidden here - .bond-summary is wider than the card on
+       narrow screens (scrolls via the ancestor .table-wrap) and clipping it would hide
+       the trailing columns (TDS, Interest, Total, Actions) instead of letting them scroll into view. */
+    .bond-card { background:white;border:1px solid #E2E8F0;border-radius:12px;margin-bottom:10px; }
     .bond-summary { padding:12px 14px;cursor:pointer;transition:background .1s; }
     .bond-summary:hover { background:#FAFBFC; }
 
@@ -482,7 +485,7 @@ export class BondFormDialogComponent {
     .btn-del    { color:#EF4444; } .btn-del:hover    { background:#FEF2F2; }
 
     /* Payout section inside card */
-    .payout-wrap  { background:#F8FAFC;border-top:2px solid #E2E8F0; }
+    .payout-wrap  { background:#F8FAFC;border-top:2px solid #E2E8F0;border-radius:0 0 11px 11px; }
     .payout-header { display:flex;align-items:center;justify-content:space-between;padding:10px 16px 8px; }
     .payout-title  { font-size:.6875rem;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:.06em; }
     .payout-empty  { padding:14px 16px;color:#94A3B8;font-size:.8125rem; }
