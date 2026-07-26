@@ -16,6 +16,7 @@ import { bondsRouter }     from './modules/bonds/bonds.routes';
 import { loansRouter }     from './modules/loans/loans.routes';
 import { sipRouter }       from './modules/sip/sip.routes';
 import { adminRouter }     from './modules/admin/admin.routes';
+import { manualIncomeRouter } from './modules/manual-income/manual-income.routes';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
 
 const app = express();
@@ -95,6 +96,7 @@ apiRouter.use('/bonds',          bondsRouter);
 apiRouter.use('/loans',          loansRouter);
 apiRouter.use('/sip',            sipRouter);
 apiRouter.use('/admin',          adminRouter);
+apiRouter.use('/manual-income',  manualIncomeRouter);
 
 app.use(env.apiPrefix, apiRouter);
 

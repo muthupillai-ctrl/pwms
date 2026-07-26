@@ -209,12 +209,21 @@ function calcMaturity(
           </div>
         </div>
 
-        <div class="r2" *ngIf="!isEdit">
+        <div class="fg">
+          <label>Platform <span class="opt">(optional)</span></label>
+          <input class="fi" formControlName="platform" placeholder="e.g. SBI, HDFC Bank, Bajaj Finance, Groww…">
+        </div>
+
+        <div class="r2">
           <div class="fg">
             <label>Principal <span class="req">*</span></label>
             <div class="pfx">
               <span class="sym">₹</span>
-              <input class="fi" type="number" formControlName="principal" placeholder="100000" min="1">
+              <input class="fi" type="number"
+                [formControlName]="isEdit ? '_principal' : 'principal'"
+                placeholder="100000" min="1"
+                [style.background]="isEdit ? '#F8FAFC' : ''"
+                [style.color]="isEdit ? '#94A3B8' : ''">
             </div>
           </div>
           <div class="fg">
@@ -226,14 +235,6 @@ function calcMaturity(
           </div>
         </div>
 
-        <div class="fg" *ngIf="isEdit">
-          <label>Interest Rate <span class="req">*</span></label>
-          <div class="pfx">
-            <input class="fi has-sfx" type="number" formControlName="interestRate" step="0.01" placeholder="7.50">
-            <span class="sfx">% p.a.</span>
-          </div>
-        </div>
-
         <div class="fg">
           <label>Compounding Frequency</label>
           <select class="fi" formControlName="compounding">
@@ -241,20 +242,18 @@ function calcMaturity(
           </select>
         </div>
 
-        <div class="r2" *ngIf="!isEdit">
+        <div class="r2">
           <div class="fg">
             <label>Start Date <span class="req">*</span></label>
-            <input class="fi" type="date" formControlName="startDate">
+            <input class="fi" type="date"
+              [formControlName]="isEdit ? '_startDate' : 'startDate'"
+              [style.background]="isEdit ? '#F8FAFC' : ''"
+              [style.color]="isEdit ? '#94A3B8' : ''">
           </div>
           <div class="fg">
             <label>Maturity Date <span class="req">*</span></label>
             <input class="fi" type="date" formControlName="maturityDate">
           </div>
-        </div>
-
-        <div class="fg" *ngIf="isEdit">
-          <label>Maturity Date <span class="req">*</span></label>
-          <input class="fi" type="date" formControlName="maturityDate">
         </div>
 
         <div class="fg">
@@ -314,6 +313,7 @@ export class FdFormDialogComponent implements OnDestroy {
       return this.fb.group({
         name:                  [fd.name, Validators.required],
         fdNumber:              [fd.symbol ?? ''],
+        platform:              [(fd.meta?.['platform'] as string) ?? ''],
         interestRate:          [fd.interest_rate, Validators.required],
         compounding:           [(fd.meta?.['compounding'] as string) ?? 'quarterly', Validators.required],
         maturityDate:          [fd.maturity_date?.slice(0, 10) ?? '', Validators.required],
@@ -326,6 +326,7 @@ export class FdFormDialogComponent implements OnDestroy {
     return this.fb.group({
       name:                  ['', Validators.required],
       fdNumber:              [''],
+      platform:              [''],
       principal:             [null, [Validators.required, Validators.min(1)]],
       interestRate:          [null, Validators.required],
       compounding:           ['quarterly', Validators.required],
@@ -377,6 +378,7 @@ export class FdFormDialogComponent implements OnDestroy {
       const body: Record<string, unknown> = {
         name:         v.name,
         fdNumber:     v.fdNumber || null,
+        platform:     v.platform || null,
         interestRate: Number(v.interestRate),
         compounding:  v.compounding,
         maturityDate: v.maturityDate,
@@ -397,6 +399,7 @@ export class FdFormDialogComponent implements OnDestroy {
         maturityDate: v.maturityDate,
       };
       if (v.fdNumber)              body['fdNumber']             = v.fdNumber;
+      if (v.platform)              body['platform']             = v.platform;
       if (v.assuredMaturityAmount) body['assuredMaturityAmount'] = Number(v.assuredMaturityAmount);
       if (v.notes)                 body['notes']                = v.notes;
       this.http.post(`${environment.apiUrl}/fixed-deposits`, body).subscribe({
@@ -447,8 +450,9 @@ export class FdFormDialogComponent implements OnDestroy {
     tr:last-child td  { border-bottom:none; }
     tr:hover td       { background:#FAFBFC; }
 
-    .fd-name   { font-weight:600;color:#0F172A; }
-    .fd-number { font-size:.75rem;color:#94A3B8;margin-top:2px; }
+    .fd-name     { font-weight:600;color:#0F172A; }
+    .fd-number   { font-size:.75rem;color:#94A3B8;margin-top:2px; }
+    .fd-platform { font-size:.6875rem;color:#6366F1;font-weight:500;margin-top:2px; }
     .rate-chip { display:inline-flex;padding:2px 9px;border-radius:20px;font-size:.6875rem;font-weight:600;background:#FEF9C3;color:#A16207; }
 
     .maturity-val { font-size:.875rem;font-weight:700;color:#7C3AED; }
@@ -534,6 +538,7 @@ export class FdFormDialogComponent implements OnDestroy {
               <tr *ngFor="let fd of fds">
                 <td>
                   <div class="fd-name">{{ fd.name }}</div>
+                  <div class="fd-platform" *ngIf="fd.meta['platform']">{{ fd.meta['platform'] }}</div>
                   <div class="fd-number" *ngIf="fd.symbol">FD# {{ fd.symbol }}</div>
                 </td>
                 <td>

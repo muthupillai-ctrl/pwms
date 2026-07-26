@@ -116,6 +116,7 @@ export class FdService {
       maturityDate: string;
       compounding: Compounding;
       assuredMaturityAmount?: number;
+      platform?: string | null;
       notes?: string;
       meta: Record<string, unknown>;
     }
@@ -124,6 +125,7 @@ export class FdService {
       await getOrCreatePortfolioAccount(userId, 'fixed_deposit', 'Fixed Deposits Portfolio');
 
     const meta: Record<string, unknown> = { ...data.meta, compounding: data.compounding };
+    if (data.platform) meta.platform = data.platform;
     if (data.notes) meta.notes = data.notes;
     if (data.assuredMaturityAmount) meta.assuredMaturityAmount = data.assuredMaturityAmount;
 
@@ -164,6 +166,7 @@ export class FdService {
       maturityDate?: string;
       compounding?: Compounding;
       assuredMaturityAmount?: number | null;
+      platform?: string | null;
       notes?: string | null;
       meta?: Record<string, unknown>;
     }
@@ -179,14 +182,14 @@ export class FdService {
     if (data.interestRate !== undefined) { fields.push(`interest_rate = $${idx++}`); values.push(data.interestRate); }
     if (data.maturityDate !== undefined) { fields.push(`maturity_date = $${idx++}`); values.push(data.maturityDate); }
 
-    // Merge meta so compounding, notes, and assuredMaturityAmount can be updated
-    if (data.compounding !== undefined || data.notes !== undefined || data.assuredMaturityAmount !== undefined || data.meta !== undefined) {
+    if (data.compounding !== undefined || data.platform !== undefined || data.notes !== undefined || data.assuredMaturityAmount !== undefined || data.meta !== undefined) {
       const currentMeta = existing.meta ?? {};
       const mergedMeta: Record<string, unknown> = {
         ...currentMeta,
         ...(data.meta ?? {}),
         ...(data.compounding !== undefined ? { compounding: data.compounding } : {}),
-        ...(data.notes !== undefined ? { notes: data.notes } : {}),
+        ...(data.platform    !== undefined ? { platform:    data.platform    } : {}),
+        ...(data.notes       !== undefined ? { notes:       data.notes       } : {}),
       };
       if (data.assuredMaturityAmount !== undefined) {
         if (data.assuredMaturityAmount === null) delete mergedMeta['assuredMaturityAmount'];

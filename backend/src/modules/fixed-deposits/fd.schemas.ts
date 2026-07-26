@@ -13,6 +13,7 @@ export const createFdSchema = Joi.object({
   maturityDate:   saneIsoDate.required(),
   compounding:            Joi.string().valid(...COMPOUNDING).default('quarterly'),
   assuredMaturityAmount:  Joi.number().positive().precision(2).optional(),
+  platform:               Joi.string().max(200).trim().allow('', null).optional(),
   notes:                  Joi.string().max(2000).trim().optional(),
   meta:                   Joi.object().default({}),
 });
@@ -24,6 +25,7 @@ export const updateFdSchema = Joi.object({
   maturityDate:           saneIsoDate,
   compounding:            Joi.string().valid(...COMPOUNDING),
   assuredMaturityAmount:  Joi.number().positive().precision(2).allow(null),
+  platform:               Joi.string().max(200).trim().allow('', null),
   notes:                  Joi.string().max(2000).trim().allow('', null),
   meta:                   Joi.object(),
 }).min(1);

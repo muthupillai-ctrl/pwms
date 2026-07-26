@@ -27,6 +27,12 @@ interface LoanRow {
   created_at: Date;
 }
 
+interface StockRow {
+  units:           string;
+  purchase_price:  string;
+  current_price:   string | null;
+}
+
 interface MfFundRow {
   latest_nav:  string;
   total_units: string;  // computed from mf_transactions
@@ -105,7 +111,7 @@ const EMPTY_FD: FdBreakdownEntry = { balance: 0, count: 0, maturityValue: 0, int
 export class PortfolioService {
   async getSummary(userId: string): Promise<PortfolioSummary> {
     // Run all queries in parallel
-    const [accountRows, fdAssets, loanRows, mfFunds, sipRows, bondSummary] = await Promise.all([
+    const [accountRows, fdAssets, loanRows, mfFunds, sipRows, bondSummary, stockRows] = await Promise.all([
       // Bank accounts only (savings/current/cash/other) — other modules own their own tables
       query<AccountSummaryRow>(
         `SELECT 'bank' AS account_type, COALESCE(SUM(balance), 0) AS total_balance, COUNT(*)::text AS count
@@ -153,6 +159,12 @@ export class PortfolioService {
          WHERE a.user_id = $1 AND a.asset_type = 'bond'`,
         [userId]
       ),
+      // Stocks: current value = COALESCE(current_price, purchase_price) * units
+      query<StockRow>(
+        `SELECT units, purchase_price, current_price
+         FROM assets WHERE user_id = $1 AND asset_type = 'stock'`,
+        [userId]
+      ),
     ]);
 
     // Build breakdown map
@@ -197,6 +209,15 @@ export class PortfolioService {
     for (const f of mfFunds) mfValue += parseFloat(f.latest_nav) * parseFloat(f.total_units);
     breakdown.mutual_fund.balance = Math.round(mfValue * 100) / 100;
     breakdown.mutual_fund.count   = mfFunds.length;
+
+    // Stocks: current value = COALESCE(current_price, buy_price) * units
+    let stocksValue = 0;
+    for (const s of stockRows) {
+      const price = parseFloat(s.current_price ?? s.purchase_price);
+      stocksValue += price * parseFloat(s.units);
+    }
+    breakdown.stocks.balance = Math.round(stocksValue * 100) / 100;
+    breakdown.stocks.count   = stockRows.length;
 
     // SIP: own breakdown slot so it shows separately in the dashboard
     let sipValue = 0;

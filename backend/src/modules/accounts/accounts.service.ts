@@ -81,6 +81,7 @@ export class AccountsService {
       name?: string;
       institution?: string | null;
       currency?: string;
+      balance?: number;
       notes?: string | null;
       meta?: Record<string, unknown>;
       isActive?: boolean;
@@ -95,6 +96,7 @@ export class AccountsService {
     if (data.name !== undefined)        { fields.push(`name = $${idx++}`);        values.push(data.name); }
     if (data.institution !== undefined) { fields.push(`institution = $${idx++}`); values.push(data.institution); }
     if (data.currency !== undefined)    { fields.push(`currency = $${idx++}`);    values.push(data.currency); }
+    if (data.balance !== undefined)     { fields.push(`balance = $${idx++}`);     values.push(data.balance); }
     if (data.notes !== undefined)       { fields.push(`notes = $${idx++}`);       values.push(data.notes); }
     if (data.meta !== undefined)        { fields.push(`meta = $${idx++}`);        values.push(JSON.stringify(data.meta)); }
     if (data.isActive !== undefined)    { fields.push(`is_active = $${idx++}`);   values.push(data.isActive); }

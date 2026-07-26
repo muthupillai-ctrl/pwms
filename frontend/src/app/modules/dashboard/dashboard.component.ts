@@ -244,6 +244,29 @@ const TYPE_BADGE: Record<string, string> = {
 
     .spinner-wrap { display: flex; justify-content: center; align-items: center; padding: 100px 0; }
 
+    /* ── Welcome / no-data state ────────────────────── */
+    .welcome-state {
+      text-align: center;
+      padding: 64px 24px;
+      background: linear-gradient(135deg, #f8fafc 0%, #eef2ff 100%);
+      border-radius: 16px;
+      border: 1px dashed #CBD5E1;
+      margin-bottom: 16px;
+    }
+    .welcome-icon {
+      width: 64px; height: 64px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #1e3a5f, #3B82F6);
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 20px;
+    }
+    .welcome-icon mat-icon { font-size: 30px; width: 30px; height: 30px; color: white; }
+    .welcome-title { font-size: 1.125rem; font-weight: 700; color: #0F172A; margin: 0 0 8px; }
+    .welcome-text {
+      font-size: 0.875rem; color: #64748B; line-height: 1.5;
+      max-width: 380px; margin: 0 auto 24px;
+    }
+
     /* ── Loans Taken card ───────────────────────────────── */
     .loan-taken-row {
       display: flex;
@@ -303,6 +326,21 @@ const TYPE_BADGE: Record<string, string> = {
     </div>
 
     <ng-container *ngIf="!loading && summary">
+
+      <!-- ── Welcome / no-data state ────────────────── -->
+      <div class="welcome-state" *ngIf="isEmpty">
+        <div class="welcome-icon"><mat-icon>account_balance_wallet</mat-icon></div>
+        <p class="welcome-title">Welcome to your dashboard</p>
+        <p class="welcome-text">
+          You haven't added any accounts, fixed deposits, bonds, or other assets yet.
+          Add your first account to start tracking your net worth.
+        </p>
+        <a routerLink="/accounts" mat-flat-button color="primary">
+          <mat-icon>add</mat-icon> Add your first account
+        </a>
+      </div>
+
+      <ng-container *ngIf="!isEmpty">
 
       <!-- ── Hero: net worth ──────────────────────── -->
       <div class="hero">
@@ -397,6 +435,8 @@ const TYPE_BADGE: Record<string, string> = {
           </div>
         </div>
       </div>
+
+      </ng-container>
 
     </ng-container>
 
@@ -542,6 +582,13 @@ export class DashboardComponent implements OnInit {
 
   get adjustedNetWorth(): number {
     return (this.summary?.netWorth ?? 0) - this.loansTakenTotalDue;
+  }
+
+  get isEmpty(): boolean {
+    return !!this.summary
+      && this.summary.totalAssets === 0
+      && this.summary.totalLiabilities === 0
+      && this.accounts.length === 0;
   }
 
   private buildBreakdown(): void {

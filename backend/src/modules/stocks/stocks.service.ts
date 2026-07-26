@@ -65,12 +65,16 @@ export class StocksService {
   async create(userId: string, data: {
     accountId?: string; symbol: string; name: string; units: number;
     purchasePrice: number; purchaseDate?: string; currentPrice?: number;
-    notes?: string; meta: Record<string, unknown>;
+    broker?: string | null; notes?: string; meta: Record<string, unknown>;
   }): Promise<StockResponse> {
     const accountId = data.accountId ??
       await getOrCreatePortfolioAccount(userId, 'stocks', 'Stocks Portfolio');
 
-    const meta = { ...data.meta, ...(data.notes ? { notes: data.notes } : {}) };
+    const meta = {
+      ...data.meta,
+      ...(data.broker ? { broker: data.broker } : {}),
+      ...(data.notes  ? { notes:  data.notes  } : {}),
+    };
 
     const [row] = await query<{ id: string }>(
       `INSERT INTO assets (account_id, user_id, asset_type, symbol, name, units, purchase_price, purchase_date, current_price, price_as_of, meta)
@@ -84,16 +88,34 @@ export class StocksService {
     return this.getOne(row.id, userId);
   }
 
-  async update(id: string, userId: string, data: { name?: string; notes?: string | null; meta?: Record<string, unknown> }): Promise<StockResponse> {
+  async update(id: string, userId: string, data: {
+    symbol?: string; name?: string; units?: number;
+    purchasePrice?: number; purchaseDate?: string | null; currentPrice?: number | null;
+    broker?: string | null; notes?: string | null; meta?: Record<string, unknown>;
+  }): Promise<StockResponse> {
     const existing = await this.getOne(id, userId);
     const fields: string[] = [];
     const values: unknown[] = [];
     let idx = 1;
 
-    if (data.name !== undefined) { fields.push(`name = $${idx++}`); values.push(data.name); }
+    if (data.symbol        !== undefined) { fields.push(`symbol = $${idx++}`);         values.push(data.symbol); }
+    if (data.name          !== undefined) { fields.push(`name = $${idx++}`);            values.push(data.name); }
+    if (data.units         !== undefined) { fields.push(`units = $${idx++}`);           values.push(data.units); }
+    if (data.purchasePrice !== undefined) { fields.push(`purchase_price = $${idx++}`);  values.push(data.purchasePrice); }
+    if (data.purchaseDate  !== undefined) { fields.push(`purchase_date = $${idx++}`);   values.push(data.purchaseDate || null); }
+    if (data.currentPrice  !== undefined) {
+      fields.push(`current_price = $${idx++}`);
+      values.push(data.currentPrice ?? null);
+      if (data.currentPrice != null) { fields.push(`price_as_of = NOW()`); }
+    }
 
-    if (data.notes !== undefined || data.meta !== undefined) {
-      const mergedMeta = { ...existing.meta, ...(data.meta ?? {}), ...(data.notes !== undefined ? { notes: data.notes } : {}) };
+    if (data.broker !== undefined || data.notes !== undefined || data.meta !== undefined) {
+      const mergedMeta = {
+        ...existing.meta,
+        ...(data.meta ?? {}),
+        ...(data.broker !== undefined ? { broker: data.broker } : {}),
+        ...(data.notes  !== undefined ? { notes:  data.notes  } : {}),
+      };
       fields.push(`meta = $${idx++}`);
       values.push(JSON.stringify(mergedMeta));
     }

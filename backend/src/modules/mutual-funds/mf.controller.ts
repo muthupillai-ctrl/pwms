@@ -23,7 +23,10 @@ export const MfController = {
 
   async updateFund(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
+      const { logger } = await import('../../utils/logger');
+      logger.debug('MF updateFund request', { fundId: req.params['id'], body: req.body });
       const fund = await mfService.updateFund(p(req.params['id']), req.user!.sub, req.body);
+      logger.debug('MF updateFund success', { fundId: fund.id, name: fund.name, latestNav: fund.latest_nav });
       ok(res, { fund });
     } catch (err) { next(err); }
   },

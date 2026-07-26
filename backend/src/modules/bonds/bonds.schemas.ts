@@ -5,6 +5,7 @@ export const createBondSchema = Joi.object({
   accountId:        Joi.string().uuid().allow(null).optional(),
   name:             Joi.string().min(1).max(255).trim().required(),
   isin:             Joi.string().max(20).trim().uppercase().allow('', null).optional(),
+  source:           Joi.string().max(500).trim().allow('', null).optional(),
   investmentAmount: Joi.number().positive().precision(2).required(),
   purchaseDate:     saneIsoDate.required(),
   maturityDate:     saneIsoDate.required(),
@@ -15,6 +16,7 @@ export const createBondSchema = Joi.object({
 export const updateBondSchema = Joi.object({
   name:             Joi.string().min(1).max(255).trim(),
   isin:             Joi.string().max(20).trim().uppercase().allow('', null),
+  source:           Joi.string().max(500).trim().allow('', null),
   investmentAmount: Joi.number().positive().precision(2),
   purchaseDate:     saneIsoDate.allow('', null),
   maturityDate:     saneIsoDate,

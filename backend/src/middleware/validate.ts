@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import Joi from 'joi';
 import { badRequest } from '../utils/response';
+import { logger } from '../utils/logger';
 
 type Target = 'body' | 'query' | 'params';
 
@@ -12,11 +13,14 @@ export function validate(schema: Joi.ObjectSchema, target: Target = 'body') {
     });
 
     if (error) {
-      badRequest(
-        res,
-        'Validation failed',
-        error.details.map((d) => d.message)
-      );
+      const messages = error.details.map((d) => d.message);
+      logger.warn('Validation failed', {
+        method:  req.method,
+        path:    req.path,
+        body:    req[target],
+        errors:  messages,
+      });
+      badRequest(res, 'Validation failed', messages);
       return;
     }
 

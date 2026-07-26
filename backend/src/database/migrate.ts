@@ -361,6 +361,40 @@ const migrations: Migration[] = [
     down: `ALTER TABLE bond_payouts DROP COLUMN IF EXISTS tds;`,
   },
   {
+    name: '018_create_manual_income_entries',
+    up: `
+      CREATE TABLE IF NOT EXISTS manual_income_entries (
+        id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        user_id     UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        income_date DATE NOT NULL,
+        amount      NUMERIC(15,2) NOT NULL,
+        notes       TEXT,
+        created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+      CREATE INDEX IF NOT EXISTS idx_manual_income_user_id ON manual_income_entries(user_id);
+      CREATE INDEX IF NOT EXISTS idx_manual_income_date ON manual_income_entries(income_date);
+    `,
+    down: `DROP TABLE IF EXISTS manual_income_entries;`,
+  },
+  {
+    name: '019_manual_income_add_recurrence',
+    up: `
+      ALTER TABLE manual_income_entries
+        ADD COLUMN IF NOT EXISTS frequency VARCHAR(20) NOT NULL DEFAULT 'once',
+        ADD COLUMN IF NOT EXISTS end_date DATE;
+      ALTER TABLE manual_income_entries
+        ADD CONSTRAINT chk_manual_income_frequency
+        CHECK (frequency IN ('once', 'monthly', 'quarterly', 'half_yearly', 'annually'));
+    `,
+    down: `
+      ALTER TABLE manual_income_entries
+        DROP CONSTRAINT IF EXISTS chk_manual_income_frequency,
+        DROP COLUMN IF EXISTS frequency,
+        DROP COLUMN IF EXISTS end_date;
+    `,
+  },
+  {
     name: '007_seed_system_categories',
     up: `
       INSERT INTO categories (name, icon, color, is_system) VALUES

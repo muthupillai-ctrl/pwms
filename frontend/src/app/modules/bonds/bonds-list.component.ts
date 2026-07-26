@@ -3,7 +3,8 @@ import {
   ChangeDetectionStrategy, ChangeDetectorRef,
 } from '@angular/core';
 import { CurrencyPipe, DatePipe, NgFor, NgIf } from '@angular/common';
-import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { FormsModule } from '@angular/forms';
+import { ReactiveFormsModule, FormBuilder, FormGroup, Validators, AbstractControl, ValidationErrors } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
 import { MatDialog, MatDialogRef, MAT_DIALOG_DATA, MatDialogModule } from '@angular/material/dialog';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
@@ -64,6 +65,13 @@ const FREQ_LABELS: Record<string, string> = {
   half_yearly: 'Half Yearly', annually: 'Annually', one_time: 'One Time',
 };
 
+function yearRangeValidator(ctrl: AbstractControl): ValidationErrors | null {
+  const v = ctrl.value as string;
+  if (!v) return null;
+  const year = parseInt(v.slice(0, 4), 10);
+  return isNaN(year) || year < 1950 || year > 2200 ? { yearRange: true } : null;
+}
+
 // ── Shared form styles ────────────────────────────────────────────────────────
 
 const FORM_STYLES = [`
@@ -117,6 +125,8 @@ const FORM_STYLES = [`
   .total-val.blue  { color:#1D4ED8; }
 
   .f { padding:9px 16px 13px;border-top:1px solid #F3F4F6;display:flex;justify-content:flex-end;gap:6px; }
+  .err { font-size:.625rem;color:#EF4444;margin-top:2px;display:block; }
+  .err-banner { background:#FEF2F2;border:1px solid #FECACA;border-radius:6px;padding:7px 10px;margin-bottom:8px;font-size:.75rem;color:#DC2626; }
 `];
 
 // ── Payout Dialog ─────────────────────────────────────────────────────────────
@@ -290,6 +300,7 @@ export class BondPayoutDialogComponent {
     </div>
 
     <div class="b">
+      <div class="err-banner" *ngIf="saveError">{{ saveError }}</div>
       <form [formGroup]="form">
 
         <span class="sl">Identification</span>
@@ -303,16 +314,26 @@ export class BondPayoutDialogComponent {
             <input class="fi" formControlName="isin" placeholder="e.g. IN0020180049">
           </div>
         </div>
+        <div class="fg">
+          <label>Source <span class="opt">(optional)</span></label>
+          <input class="fi" formControlName="source" placeholder="e.g. RBI Retail Direct, NSE goBID, Broker…">
+        </div>
 
         <span class="sl" style="margin-top:4px">Dates</span>
         <div class="r2">
           <div class="fg">
             <label>Purchase Date <span class="req">*</span></label>
             <input class="fi" type="date" formControlName="purchaseDate">
+            <span class="err" *ngIf="form.get('purchaseDate')?.errors?.['yearRange'] && form.get('purchaseDate')?.touched">
+              Year must be between 1950 and 2200
+            </span>
           </div>
           <div class="fg">
             <label>Expiry Date <span class="req">*</span></label>
             <input class="fi" type="date" formControlName="maturityDate">
+            <span class="err" *ngIf="form.get('maturityDate')?.errors?.['yearRange'] && form.get('maturityDate')?.touched">
+              Year must be between 1950 and 2200
+            </span>
           </div>
         </div>
 
@@ -350,6 +371,7 @@ export class BondFormDialogComponent {
   isEdit: boolean;
   form: FormGroup;
   saving = false;
+  saveError = '';
 
   constructor(
     @Inject(MAT_DIALOG_DATA) public data: DialogData,
@@ -367,8 +389,9 @@ export class BondFormDialogComponent {
       return this.fb.group({
         name:             [b.name, Validators.required],
         isin:             [b.symbol ?? ''],
-        purchaseDate:     [b.purchase_date ? b.purchase_date.slice(0, 10) : '', Validators.required],
-        maturityDate:     [b.maturity_date ? b.maturity_date.slice(0, 10) : '', Validators.required],
+        source:           [(b.meta?.['source'] as string) ?? ''],
+        purchaseDate:     [b.purchase_date ? b.purchase_date.slice(0, 10) : '', [Validators.required, yearRangeValidator]],
+        maturityDate:     [b.maturity_date ? b.maturity_date.slice(0, 10) : '', [Validators.required, yearRangeValidator]],
         investmentAmount: [b.investment_amount, [Validators.required, Validators.min(0.01)]],
         notes:            [(b.meta?.['notes'] as string) ?? ''],
       });
@@ -376,14 +399,16 @@ export class BondFormDialogComponent {
     return this.fb.group({
       name:             ['', Validators.required],
       isin:             [''],
-      purchaseDate:     [this.today(), Validators.required],
-      maturityDate:     ['', Validators.required],
+      source:           [''],
+      purchaseDate:     [this.today(), [Validators.required, yearRangeValidator]],
+      maturityDate:     ['', [Validators.required, yearRangeValidator]],
       investmentAmount: [null, [Validators.required, Validators.min(0.01)]],
       notes:            [''],
     });
   }
 
   save(): void {
+    this.saveError = '';
     if (this.form.invalid) { this.form.markAllAsTouched(); return; }
     this.saving = true;
     const v = this.form.value;
@@ -391,6 +416,7 @@ export class BondFormDialogComponent {
     const body: Record<string, unknown> = {
       name:             v.name,
       isin:             v.isin || null,
+      source:           v.source || null,
       purchaseDate:     v.purchaseDate,
       maturityDate:     v.maturityDate,
       investmentAmount: Number(v.investmentAmount),
@@ -406,7 +432,13 @@ export class BondFormDialogComponent {
 
     req.subscribe({
       next:  () => this.dialogRef.close(true),
-      error: () => { this.saving = false; },
+      error: (err) => {
+        this.saving = false;
+        const msgs: string[] = err?.error?.errors ?? err?.error?.details ?? [];
+        this.saveError = msgs.length
+          ? msgs.join(' · ')
+          : 'Save failed — please check your inputs and try again.';
+      },
     });
   }
 
@@ -416,12 +448,14 @@ export class BondFormDialogComponent {
 
 // ── List component ────────────────────────────────────────────────────────────
 
+type SortField = 'name' | 'source' | 'purchase_date' | 'maturity_date' | 'investment_amount' | 'total';
+
 @Component({
   selector: 'app-bonds-list',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
-    NgIf, NgFor, CurrencyPipe, DatePipe,
+    NgIf, NgFor, CurrencyPipe, DatePipe, FormsModule,
     MatProgressSpinnerModule, MatIconModule,
     MatButtonModule, MatTooltipModule, MatDialogModule,
   ],
@@ -444,17 +478,50 @@ export class BondFormDialogComponent {
     .stat-val.red   { color:#DC2626; }
 
     /* Header */
-    .page-hdr   { display:flex;align-items:center;justify-content:space-between;margin-bottom:16px; }
+    .page-hdr   { display:flex;align-items:center;justify-content:space-between;margin-bottom:12px; }
     .page-title { font-size:1.125rem;font-weight:700;color:#0F172A; }
 
-    /* Column grid: icon | name | purchase | expiry | investment | tds | interest | total | actions */
-    .col-grid { display:grid;grid-template-columns:28px minmax(140px,1fr) 106px 106px 118px 78px 128px 108px 76px;align-items:center;gap:0; }
+    /* Filter bar */
+    .filter-bar {
+      display:flex;align-items:center;gap:10px;
+      background:white;border:1px solid #E2E8F0;border-radius:10px;
+      padding:8px 12px;margin-bottom:12px;
+    }
+    .search-wrap { position:relative;flex:1;max-width:320px; }
+    .search-wrap mat-icon {
+      position:absolute;left:8px;top:50%;transform:translateY(-50%);
+      font-size:16px;width:16px;height:16px;color:#94A3B8;pointer-events:none;
+    }
+    .search-input {
+      width:100%;height:32px;padding:0 8px 0 30px;box-sizing:border-box;
+      border:1.5px solid #E2E8F0;border-radius:7px;font-size:.8125rem;
+      color:#0F172A;background:#F8FAFC;font-family:inherit;outline:none;
+      transition:border-color .12s,box-shadow .12s;
+    }
+    .search-input:focus { border-color:#3B82F6;box-shadow:0 0 0 3px rgba(59,130,246,.1);background:white; }
+    .search-input::placeholder { color:#CBD5E1; }
+    .filter-sep { width:1px;height:20px;background:#E2E8F0;flex-shrink:0; }
+    .filter-count { font-size:.75rem;color:#94A3B8;white-space:nowrap; }
+    .filter-count strong { color:#0F172A;font-weight:600; }
+    .clear-btn {
+      background:none;border:none;cursor:pointer;padding:2px 4px;
+      font-size:.6875rem;color:#94A3B8;border-radius:4px;
+    }
+    .clear-btn:hover { background:#F1F5F9;color:#475569; }
+
+    /* Column grid: icon | name | source | purchase | expiry | investment | tds | interest | total | actions */
+    .col-grid { display:grid;grid-template-columns:28px minmax(140px,1fr) 120px 106px 106px 118px 78px 128px 108px 76px;align-items:center;gap:0; }
     .table-wrap { overflow-x:auto; }
-    .table-wrap .col-grid { min-width:888px; }
+    .table-wrap .col-grid { min-width:1008px; }
+    .source-cell { font-size:.75rem;color:#64748B;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
 
     /* Column header row */
     .col-hdr { padding:8px 14px;background:#F8FAFC;border:1px solid #E2E8F0;border-radius:12px;margin-bottom:8px; }
-    .th { font-size:.625rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#94A3B8; }
+    .th { font-size:.625rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#94A3B8;display:flex;align-items:center;gap:3px; }
+    .th.sortable { cursor:pointer;user-select:none; }
+    .th.sortable:hover { color:#64748B; }
+    .th.active { color:#3B82F6; }
+    .sort-arrow { font-size:12px;width:12px;height:12px;opacity:.7; }
 
     /* Bond cards */
     /* overflow intentionally not hidden here - .bond-summary is wider than the card on
@@ -550,30 +617,69 @@ export class BondFormDialogComponent {
         </button>
       </div>
 
+      <!-- Filter bar -->
+      <div class="filter-bar" *ngIf="bonds.length > 0">
+        <div class="search-wrap">
+          <mat-icon>search</mat-icon>
+          <input class="search-input" type="text" [(ngModel)]="searchText"
+            placeholder="Search by name, ISIN, or source…">
+        </div>
+        <div class="filter-sep"></div>
+        <span class="filter-count">
+          Showing <strong>{{ filteredBonds.length }}</strong> of {{ bonds.length }} bonds
+        </span>
+        <button class="clear-btn" *ngIf="searchText" (click)="searchText = ''">✕ Clear</button>
+      </div>
+
       <!-- Empty state -->
       <div *ngIf="bonds.length === 0" class="empty">
         <mat-icon>receipt_long</mat-icon>
         <p>No bond holdings yet. Click <strong>Add Bond</strong> to get started.</p>
       </div>
 
+      <!-- No results after filter -->
+      <div *ngIf="bonds.length > 0 && filteredBonds.length === 0" class="empty">
+        <mat-icon>search_off</mat-icon>
+        <p>No bonds match "<strong>{{ searchText }}</strong>"</p>
+      </div>
+
       <!-- Bond list (horizontally scrollable on narrow screens) -->
-      <div class="table-wrap" *ngIf="bonds.length > 0">
+      <div class="table-wrap" *ngIf="filteredBonds.length > 0">
 
       <!-- Column header -->
       <div class="col-hdr col-grid">
         <div></div>
-        <div class="th">Bond</div>
-        <div class="th">Purchase Date</div>
-        <div class="th">Expiry Date</div>
-        <div class="th">Investment Amount</div>
+        <div class="th sortable" [class.active]="sortField==='name'" (click)="setSort('name')">
+          Bond
+          <mat-icon class="sort-arrow" *ngIf="sortField==='name'">{{ sortDir==='asc' ? 'arrow_upward' : 'arrow_downward' }}</mat-icon>
+        </div>
+        <div class="th sortable" [class.active]="sortField==='source'" (click)="setSort('source')">
+          Source
+          <mat-icon class="sort-arrow" *ngIf="sortField==='source'">{{ sortDir==='asc' ? 'arrow_upward' : 'arrow_downward' }}</mat-icon>
+        </div>
+        <div class="th sortable" [class.active]="sortField==='purchase_date'" (click)="setSort('purchase_date')">
+          Purchase Date
+          <mat-icon class="sort-arrow" *ngIf="sortField==='purchase_date'">{{ sortDir==='asc' ? 'arrow_upward' : 'arrow_downward' }}</mat-icon>
+        </div>
+        <div class="th sortable" [class.active]="sortField==='maturity_date'" (click)="setSort('maturity_date')">
+          Expiry Date
+          <mat-icon class="sort-arrow" *ngIf="sortField==='maturity_date'">{{ sortDir==='asc' ? 'arrow_upward' : 'arrow_downward' }}</mat-icon>
+        </div>
+        <div class="th sortable" [class.active]="sortField==='investment_amount'" (click)="setSort('investment_amount')">
+          Investment Amount
+          <mat-icon class="sort-arrow" *ngIf="sortField==='investment_amount'">{{ sortDir==='asc' ? 'arrow_upward' : 'arrow_downward' }}</mat-icon>
+        </div>
         <div class="th">TDS</div>
         <div class="th">Expected Interest</div>
-        <div class="th">Total</div>
+        <div class="th sortable" [class.active]="sortField==='total'" (click)="setSort('total')">
+          Total
+          <mat-icon class="sort-arrow" *ngIf="sortField==='total'">{{ sortDir==='asc' ? 'arrow_upward' : 'arrow_downward' }}</mat-icon>
+        </div>
         <div class="th"></div>
       </div>
 
       <!-- Bond cards -->
-      <div *ngFor="let b of bonds" class="bond-card">
+      <div *ngFor="let b of filteredBonds" class="bond-card">
 
         <!-- Clickable summary row -->
         <div class="bond-summary col-grid" (click)="toggleExpand(b.id)">
@@ -582,6 +688,7 @@ export class BondFormDialogComponent {
             <div class="bond-name">{{ b.name }}</div>
             <div class="bond-isin" *ngIf="b.symbol">{{ b.symbol }}</div>
           </div>
+          <div class="source-cell">{{ b.meta['source'] || '—' }}</div>
           <div class="mono">
             <span *ngIf="b.purchase_date">{{ b.purchase_date | date:'d MMM y' }}</span>
             <span *ngIf="!b.purchase_date" class="muted">—</span>
@@ -694,6 +801,51 @@ export class BondsListComponent implements OnInit {
   totalTds              = 0;
   totalExpectedInterest = 0;
   grandTotal            = 0;
+
+  searchText = '';
+  sortField: SortField = 'name';
+  sortDir: 'asc' | 'desc' = 'asc';
+
+  get filteredBonds(): BondRow[] {
+    let result = this.bonds;
+
+    const q = this.searchText.trim().toLowerCase();
+    if (q) {
+      result = result.filter(b =>
+        b.name.toLowerCase().includes(q) ||
+        (b.symbol ?? '').toLowerCase().includes(q) ||
+        ((b.meta['source'] as string) ?? '').toLowerCase().includes(q)
+      );
+    }
+
+    return [...result].sort((a, b) => {
+      let va: string | number;
+      let vb: string | number;
+      switch (this.sortField) {
+        case 'name':              va = a.name.toLowerCase();        vb = b.name.toLowerCase();        break;
+        case 'source':            va = ((a.meta['source'] as string) ?? '').toLowerCase();
+                                  vb = ((b.meta['source'] as string) ?? '').toLowerCase();            break;
+        case 'purchase_date':     va = a.purchase_date ?? '';       vb = b.purchase_date ?? '';       break;
+        case 'maturity_date':     va = a.maturity_date ?? '';       vb = b.maturity_date ?? '';       break;
+        case 'investment_amount': va = a.investment_amount;         vb = b.investment_amount;         break;
+        case 'total':             va = a.total;                     vb = b.total;                     break;
+        default:                  va = '';                          vb = '';
+      }
+      if (va < vb) return this.sortDir === 'asc' ? -1 : 1;
+      if (va > vb) return this.sortDir === 'asc' ?  1 : -1;
+      return 0;
+    });
+  }
+
+  setSort(field: SortField): void {
+    if (this.sortField === field) {
+      this.sortDir = this.sortDir === 'asc' ? 'desc' : 'asc';
+    } else {
+      this.sortField = field;
+      this.sortDir = 'asc';
+    }
+    this.cdr.markForCheck();
+  }
 
   constructor(
     private http: HttpClient,

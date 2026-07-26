@@ -16,6 +16,7 @@ export const updateAccountSchema = Joi.object({
   name:        Joi.string().min(1).max(255).trim(),
   institution: Joi.string().max(255).trim().allow('', null),
   currency:    Joi.string().length(3).uppercase(),
+  balance:     Joi.number().precision(2),
   notes:       Joi.string().max(2000).trim().allow('', null),
   meta:        Joi.object(),
   isActive:    Joi.boolean(),

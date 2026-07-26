@@ -29,6 +29,7 @@ export interface UpdateAccountPayload {
   name?:        string;
   institution?: string | null;
   currency?:    string;
+  balance?:     number;
   notes?:       string | null;
   isActive?:    boolean;
   meta?:        Record<string, unknown>;

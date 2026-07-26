@@ -117,6 +117,7 @@ export class MfService {
     latestNav?: number;
     notes?: string | null;
   }): Promise<MfFundRow> {
+    logger.debug('MF updateFund service called', { id, userId, data });
     await this.getFund(id, userId);
     const fields: string[] = [];
     const values: unknown[] = [];
@@ -127,7 +128,9 @@ export class MfService {
     if (data.notes      !== undefined) { fields.push(`notes = $${idx++}`);       values.push(data.notes); }
     fields.push('updated_at = NOW()');
     values.push(id, userId);
-    await query(`UPDATE mf_funds SET ${fields.join(', ')} WHERE id = $${idx++} AND user_id = $${idx}`, values);
+    const sql = `UPDATE mf_funds SET ${fields.join(', ')} WHERE id = $${idx++} AND user_id = $${idx}`;
+    logger.debug('MF updateFund SQL', { sql, values });
+    await query(sql, values);
     logger.info('MF fund updated', { fundId: id, userId });
     return this.getFund(id, userId);
   }

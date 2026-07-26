@@ -3,7 +3,7 @@ import {
   ChangeDetectionStrategy, ChangeDetectorRef, OnDestroy,
 } from '@angular/core';
 import { CurrencyPipe, DecimalPipe, NgFor, NgIf } from '@angular/common';
-import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { MatDialog, MatDialogRef, MAT_DIALOG_DATA, MatDialogModule } from '@angular/material/dialog';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatIconModule } from '@angular/material/icon';
@@ -25,11 +25,13 @@ interface StockRow {
   units: number;
   buy_price: number;
   current_price: number | null;
+  purchase_date: string | null;
   invested_value: number;
   current_value: number;
   gain_loss: number;
   gain_loss_pct: number;
   days_held: number;
+  meta: Record<string, unknown>;
 }
 
 interface DialogData { stock: StockRow | null; }
@@ -86,6 +88,12 @@ interface DialogData { stock: StockRow | null; }
     .edit-badge { display:flex;align-items:center;gap:8px;background:#ECFDF5;border-radius:7px;padding:8px 10px;margin-bottom:8px;font-size:.75rem;color:#065F46;font-weight:500; }
     .edit-badge mat-icon { font-size:14px;width:14px;height:14px; }
 
+    .vbtn { height:34px;padding:0 10px;border:1.5px solid #3B82F6;border-radius:6px;background:#EFF6FF;color:#1D4ED8;font-size:.75rem;font-weight:600;cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center;gap:4px;font-family:inherit;flex-shrink:0; }
+    .vbtn:hover:not(:disabled) { background:#DBEAFE; }
+    .vbtn:disabled { opacity:.5;cursor:default; }
+    .quote-ok  { font-size:.625rem;color:#16A34A;margin-top:3px; }
+    .quote-err { font-size:.625rem;color:#EF4444;margin-top:3px; }
+
     .f { padding:9px 16px 13px;border-top:1px solid #F3F4F6;display:flex;justify-content:flex-end;gap:6px; }
   `],
   template: `
@@ -113,9 +121,19 @@ interface DialogData { stock: StockRow | null; }
           <div class="r2">
             <div class="fg">
               <label>Symbol <span class="req">*</span></label>
-              <input class="fi" formControlName="symbol" placeholder="e.g. RELIANCE"
-                [class.err]="symbolInvalid" style="text-transform:uppercase">
+              <div style="display:flex;gap:6px">
+                <input class="fi" formControlName="symbol" placeholder="e.g. RELIANCE"
+                  [class.err]="symbolInvalid" style="text-transform:uppercase;flex:1"
+                  (input)="onSymbolChange()">
+                <button type="button" class="vbtn" (click)="validateSymbol()"
+                  [disabled]="!form.get('symbol')?.value?.trim() || validating">
+                  <mat-spinner *ngIf="validating" diameter="12"></mat-spinner>
+                  {{ validating ? '…' : 'Validate' }}
+                </button>
+              </div>
               <span class="ferr" *ngIf="symbolInvalid">Required</span>
+              <div class="quote-ok" *ngIf="quoteInfo">✓ {{ quoteInfo }}</div>
+              <div class="quote-err" *ngIf="quoteError">{{ quoteError }}</div>
             </div>
             <div class="fg">
               <label>Name <span class="req">*</span></label>
@@ -159,6 +177,11 @@ interface DialogData { stock: StockRow | null; }
           </div>
 
           <div class="fg">
+            <label>Broker <span class="opt">(optional)</span></label>
+            <input class="fi" formControlName="broker" placeholder="e.g. Zerodha, Groww, HDFC Securities…">
+          </div>
+
+          <div class="fg">
             <label>Notes <span class="opt">(optional)</span></label>
             <textarea class="fta" formControlName="notes" rows="2" placeholder="Any additional details…"></textarea>
           </div>
@@ -168,18 +191,69 @@ interface DialogData { stock: StockRow | null; }
         <!-- EDIT MODE -->
         <ng-container *ngIf="isEdit">
 
-          <div class="edit-badge">
-            <mat-icon>lock</mat-icon>
-            Symbol and units cannot be changed after creation
-          </div>
-
           <span class="sl">Details</span>
 
+          <div class="r2">
+            <div class="fg">
+              <label>Symbol <span class="req">*</span></label>
+              <div style="display:flex;gap:6px">
+                <input class="fi" formControlName="symbol" placeholder="e.g. RELIANCE"
+                  [class.err]="symbolInvalid" style="text-transform:uppercase;flex:1"
+                  (input)="onSymbolChange()">
+                <button type="button" class="vbtn" (click)="validateSymbol()"
+                  [disabled]="!form.get('symbol')?.value?.trim() || validating">
+                  <mat-spinner *ngIf="validating" diameter="12"></mat-spinner>
+                  {{ validating ? '…' : 'Validate' }}
+                </button>
+              </div>
+              <span class="ferr" *ngIf="symbolInvalid">Required</span>
+              <div class="quote-ok" *ngIf="quoteInfo">✓ {{ quoteInfo }}</div>
+              <div class="quote-err" *ngIf="quoteError">{{ quoteError }}</div>
+            </div>
+            <div class="fg">
+              <label>Name <span class="req">*</span></label>
+              <input class="fi" formControlName="name" placeholder="e.g. Reliance Industries"
+                [class.err]="nameInvalid">
+              <span class="ferr" *ngIf="nameInvalid">Required</span>
+            </div>
+          </div>
+
+          <div class="r2">
+            <div class="fg">
+              <label>Units <span class="req">*</span></label>
+              <input class="fi" type="number" formControlName="units" placeholder="e.g. 10"
+                [class.err]="unitsInvalid" min="0.000001" step="any">
+              <span class="ferr" *ngIf="unitsInvalid">Enter a positive number</span>
+            </div>
+            <div class="fg">
+              <label>Purchase Price <span class="req">*</span></label>
+              <div class="pfx">
+                <span class="sym">₹</span>
+                <input class="fi" type="number" formControlName="purchasePrice" placeholder="e.g. 2500"
+                  [class.err]="purchasePriceInvalid" min="0.0001" step="any">
+              </div>
+              <span class="ferr" *ngIf="purchasePriceInvalid">Enter a valid price</span>
+            </div>
+          </div>
+
+          <div class="r2">
+            <div class="fg">
+              <label>Purchase Date <span class="opt">(optional)</span></label>
+              <input class="fi" type="date" formControlName="purchaseDate">
+            </div>
+            <div class="fg">
+              <label>Current Price <span class="opt">(optional)</span></label>
+              <div class="pfx">
+                <span class="sym">₹</span>
+                <input class="fi" type="number" formControlName="currentPrice" placeholder="e.g. 2800"
+                  min="0" step="any">
+              </div>
+            </div>
+          </div>
+
           <div class="fg">
-            <label>Name <span class="req">*</span></label>
-            <input class="fi" formControlName="name" placeholder="e.g. Reliance Industries"
-              [class.err]="nameInvalid">
-            <span class="ferr" *ngIf="nameInvalid">Required</span>
+            <label>Broker <span class="opt">(optional)</span></label>
+            <input class="fi" formControlName="broker" placeholder="e.g. Zerodha, Groww, HDFC Securities…">
           </div>
 
           <div class="fg">
@@ -206,7 +280,10 @@ interface DialogData { stock: StockRow | null; }
 export class StockFormDialogComponent implements OnInit {
   isEdit: boolean;
   form!: FormGroup;
-  saving = false;
+  saving    = false;
+  validating = false;
+  quoteInfo  = '';
+  quoteError = '';
 
   constructor(
     @Inject(MAT_DIALOG_DATA) public data: DialogData,
@@ -219,8 +296,14 @@ export class StockFormDialogComponent implements OnInit {
     const s = this.data.stock;
     if (s) {
       this.form = this.fb.group({
-        name:  [s.name, Validators.required],
-        notes: [''],
+        symbol:        [s.symbol,    Validators.required],
+        name:          [s.name,      Validators.required],
+        units:         [s.units,     [Validators.required, Validators.min(0.000001)]],
+        purchasePrice: [s.buy_price, [Validators.required, Validators.min(0.0001)]],
+        purchaseDate:  [s.purchase_date ? (s.purchase_date as string).slice(0, 10) : ''],
+        currentPrice:  [s.current_price ?? null],
+        broker:        [(s.meta['broker'] as string) ?? ''],
+        notes:         [(s.meta['notes']  as string) ?? ''],
       });
     } else {
       this.form = this.fb.group({
@@ -230,6 +313,7 @@ export class StockFormDialogComponent implements OnInit {
         purchasePrice: [null, [Validators.required, Validators.min(0.0001)]],
         purchaseDate:  [this.today()],
         currentPrice:  [null],
+        broker:        [''],
         notes:         [''],
       });
     }
@@ -237,6 +321,30 @@ export class StockFormDialogComponent implements OnInit {
 
   get nameInvalid():          boolean { const c = this.form.get('name');          return !!(c?.invalid && c?.touched); }
   get symbolInvalid():        boolean { const c = this.form.get('symbol');         return !!(c?.invalid && c?.touched); }
+
+  onSymbolChange(): void { this.quoteInfo = ''; this.quoteError = ''; }
+
+  validateSymbol(): void {
+    const symbol = (this.form.get('symbol')?.value ?? '').trim().toUpperCase();
+    if (!symbol) return;
+    this.validating = true;
+    this.quoteInfo  = '';
+    this.quoteError = '';
+    this.http.get<{ data: { quote: { price: number; name: string; exchange: string; currency: string } } }>(
+      `${environment.apiUrl}/stocks/quote/${encodeURIComponent(symbol)}`
+    ).subscribe({
+      next: (res) => {
+        const { price, name, exchange, currency } = res.data.quote;
+        this.form.patchValue({ currentPrice: price, name: this.form.get('name')?.value || name });
+        this.quoteInfo  = `₹${price.toLocaleString('en-IN')} · ${name} · ${exchange} (${currency})`;
+        this.validating = false;
+      },
+      error: (err) => {
+        this.quoteError = err?.error?.error?.message ?? 'Could not fetch price — check the symbol (e.g. RELIANCE.NS)';
+        this.validating = false;
+      },
+    });
+  }
   get unitsInvalid():         boolean { const c = this.form.get('units');          return !!(c?.invalid && c?.touched); }
   get purchasePriceInvalid(): boolean { const c = this.form.get('purchasePrice'); return !!(c?.invalid && c?.touched); }
 
@@ -245,7 +353,17 @@ export class StockFormDialogComponent implements OnInit {
     this.saving = true;
     const v = this.form.value;
     if (this.isEdit) {
-      this.http.patch(`${environment.apiUrl}/stocks/${this.data.stock!.id}`, { name: v.name, notes: v.notes || null })
+      const editBody: Record<string, unknown> = {
+        symbol:        v.symbol.toUpperCase().trim(),
+        name:          v.name,
+        units:         Number(v.units),
+        purchasePrice: Number(v.purchasePrice),
+        purchaseDate:  v.purchaseDate || null,
+        currentPrice:  v.currentPrice != null && v.currentPrice !== '' ? Number(v.currentPrice) : null,
+        broker:        v.broker || null,
+        notes:         v.notes  || null,
+      };
+      this.http.patch(`${environment.apiUrl}/stocks/${this.data.stock!.id}`, editBody)
         .subscribe({ next: () => this.dialogRef.close(true), error: () => { this.saving = false; } });
     } else {
       const body: any = {
@@ -254,7 +372,8 @@ export class StockFormDialogComponent implements OnInit {
         units:         Number(v.units),
         purchasePrice: Number(v.purchasePrice),
         purchaseDate:  v.purchaseDate || undefined,
-        notes:         v.notes || undefined,
+        broker:        v.broker || undefined,
+        notes:         v.notes  || undefined,
       };
       if (v.currentPrice) body.currentPrice = Number(v.currentPrice);
       this.http.post(`${environment.apiUrl}/stocks`, body)
@@ -404,12 +523,14 @@ export class StockPriceDialogComponent {
 
 // ── List component ────────────────────────────────────────────────────────────
 
+type SortField = 'name' | 'symbol' | 'broker' | 'units' | 'buy_price' | 'invested_value' | 'current_value' | 'gain_loss';
+
 @Component({
   selector: 'app-stocks-list',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
-    NgIf, NgFor, CurrencyPipe, DecimalPipe,
+    NgIf, NgFor, CurrencyPipe, DecimalPipe, FormsModule,
     MatProgressSpinnerModule, MatIconModule,
     MatButtonModule, MatTooltipModule, MatDialogModule,
   ],
@@ -430,8 +551,24 @@ export class StockPriceDialogComponent {
     .stat-val.emerald { color:#059669; }
 
     /* ── Page header ── */
-    .page-hdr   { display:flex;align-items:center;justify-content:space-between;margin-bottom:16px; }
+    .page-hdr   { display:flex;align-items:center;justify-content:space-between;margin-bottom:12px; }
     .page-title { font-size:1.125rem;font-weight:700;color:#0F172A; }
+
+    /* ── Filter bar ── */
+    .filter-bar { display:flex;align-items:center;gap:10px;background:white;border:1px solid #E2E8F0;border-radius:10px;padding:8px 12px;margin-bottom:12px; }
+    .search-wrap { position:relative;flex:1;max-width:320px; }
+    .search-wrap mat-icon { position:absolute;left:8px;top:50%;transform:translateY(-50%);font-size:16px;width:16px;height:16px;color:#94A3B8;pointer-events:none; }
+    .search-input { width:100%;height:32px;padding:0 8px 0 30px;box-sizing:border-box;border:1.5px solid #E5E7EB;border-radius:7px;font-size:.8125rem;color:#111827;font-family:inherit;outline:none;transition:border-color .12s; }
+    .search-input:focus { border-color:#3B82F6; }
+    .filter-count { font-size:.75rem;color:#64748B;white-space:nowrap; }
+    .clear-btn { font-size:.75rem;color:#3B82F6;cursor:pointer;background:none;border:none;padding:0;font-family:inherit; }
+    .clear-btn:hover { text-decoration:underline; }
+
+    /* ── Sortable headers ── */
+    th.sortable { cursor:pointer;user-select:none; }
+    th.sortable:hover { color:#374151; }
+    th.active { color:#3B82F6; }
+    .sort-arrow { font-size:10px;margin-left:2px;opacity:.6; }
 
     /* ── Table ── */
     .table-wrap { background:white;border:1px solid #E2E8F0;border-radius:12px;overflow-x:auto; }
@@ -544,6 +681,19 @@ export class StockPriceDialogComponent {
         </div>
       </div>
 
+      <!-- Filter bar -->
+      <div class="filter-bar" *ngIf="stocks.length > 0">
+        <div class="search-wrap">
+          <mat-icon>search</mat-icon>
+          <input class="search-input" type="text" [(ngModel)]="searchText"
+            placeholder="Search by name, symbol or broker…">
+        </div>
+        <span class="filter-count">
+          {{ filteredStocks.length }} of {{ stocks.length }}
+        </span>
+        <button class="clear-btn" *ngIf="searchText" (click)="searchText=''">Clear</button>
+      </div>
+
       <!-- Table -->
       <div class="table-wrap">
         <div *ngIf="stocks.length === 0" class="empty">
@@ -551,21 +701,41 @@ export class StockPriceDialogComponent {
           <p>No stock holdings yet. Click <strong>Add Stock</strong> to get started.</p>
         </div>
 
-        <table *ngIf="stocks.length > 0">
+        <div *ngIf="stocks.length > 0 && filteredStocks.length === 0" class="empty">
+          <mat-icon>search_off</mat-icon>
+          <p>No stocks match "<strong>{{ searchText }}</strong>"</p>
+        </div>
+
+        <table *ngIf="filteredStocks.length > 0">
           <thead>
             <tr>
-              <th>Stock</th>
-              <th>Shares</th>
-              <th>Avg Buy</th>
+              <th class="sortable" [class.active]="sortField==='name'" (click)="setSort('name')">
+                Stock <span class="sort-arrow">{{ sortField==='name' ? (sortDir==='asc' ? '▲' : '▼') : '⇅' }}</span>
+              </th>
+              <th class="sortable" [class.active]="sortField==='broker'" (click)="setSort('broker')">
+                Broker <span class="sort-arrow">{{ sortField==='broker' ? (sortDir==='asc' ? '▲' : '▼') : '⇅' }}</span>
+              </th>
+              <th class="sortable" [class.active]="sortField==='units'" (click)="setSort('units')">
+                Shares <span class="sort-arrow">{{ sortField==='units' ? (sortDir==='asc' ? '▲' : '▼') : '⇅' }}</span>
+              </th>
+              <th class="sortable" [class.active]="sortField==='buy_price'" (click)="setSort('buy_price')">
+                Avg Buy <span class="sort-arrow">{{ sortField==='buy_price' ? (sortDir==='asc' ? '▲' : '▼') : '⇅' }}</span>
+              </th>
               <th>Cur. Price</th>
-              <th>Invested</th>
-              <th>Current Value</th>
-              <th>Profit / Loss</th>
+              <th class="sortable" [class.active]="sortField==='invested_value'" (click)="setSort('invested_value')">
+                Invested <span class="sort-arrow">{{ sortField==='invested_value' ? (sortDir==='asc' ? '▲' : '▼') : '⇅' }}</span>
+              </th>
+              <th class="sortable" [class.active]="sortField==='current_value'" (click)="setSort('current_value')">
+                Current Value <span class="sort-arrow">{{ sortField==='current_value' ? (sortDir==='asc' ? '▲' : '▼') : '⇅' }}</span>
+              </th>
+              <th class="sortable" [class.active]="sortField==='gain_loss'" (click)="setSort('gain_loss')">
+                Profit / Loss <span class="sort-arrow">{{ sortField==='gain_loss' ? (sortDir==='asc' ? '▲' : '▼') : '⇅' }}</span>
+              </th>
               <th></th>
             </tr>
           </thead>
           <tbody>
-            <tr *ngFor="let s of stocks">
+            <tr *ngFor="let s of filteredStocks">
               <td>
                 <div style="display:flex;align-items:center;gap:10px">
                   <div class="ticker-badge">{{ (s.symbol || '?').slice(0,4) }}</div>
@@ -574,6 +744,10 @@ export class StockPriceDialogComponent {
                     <div class="stock-meta">{{ s.symbol }}</div>
                   </div>
                 </div>
+              </td>
+              <td style="font-size:.8125rem;color:#374151">
+                <span *ngIf="s.meta['broker']">{{ s.meta['broker'] }}</span>
+                <span *ngIf="!s.meta['broker']" style="color:#CBD5E1">—</span>
               </td>
               <td class="mono">{{ s.units | number:'1.0-4' }}</td>
               <td class="mono">₹{{ s.buy_price | number:'1.2-2' }}</td>
@@ -638,10 +812,53 @@ export class StocksListComponent implements OnInit {
   deleteTarget: StockRow | null = null;
   refreshStatus: { type: 'ok' | 'warn' | 'err'; msg: string } | null = null;
 
+  searchText = '';
+  sortField: SortField = 'name';
+  sortDir: 'asc' | 'desc' = 'asc';
+
   totalInvested = 0;
   totalValue    = 0;
   totalPnl      = 0;
   totalPnlPct   = 0;
+
+  get filteredStocks(): StockRow[] {
+    const q = this.searchText.trim().toLowerCase();
+    let list = q
+      ? this.stocks.filter(s =>
+          s.name.toLowerCase().includes(q) ||
+          s.symbol.toLowerCase().includes(q) ||
+          ((s.meta['broker'] as string) ?? '').toLowerCase().includes(q)
+        )
+      : [...this.stocks];
+
+    list.sort((a, b) => {
+      let va: string | number;
+      let vb: string | number;
+      switch (this.sortField) {
+        case 'name':           va = a.name;           vb = b.name;           break;
+        case 'symbol':         va = a.symbol;         vb = b.symbol;         break;
+        case 'broker':         va = (a.meta['broker'] as string) ?? ''; vb = (b.meta['broker'] as string) ?? ''; break;
+        case 'units':          va = a.units;          vb = b.units;          break;
+        case 'buy_price':      va = a.buy_price;      vb = b.buy_price;      break;
+        case 'invested_value': va = a.invested_value; vb = b.invested_value; break;
+        case 'current_value':  va = a.current_value;  vb = b.current_value;  break;
+        case 'gain_loss':      va = a.gain_loss;      vb = b.gain_loss;      break;
+        default:               va = a.name;           vb = b.name;
+      }
+      const cmp = typeof va === 'string' ? va.localeCompare(vb as string) : (va as number) - (vb as number);
+      return this.sortDir === 'asc' ? cmp : -cmp;
+    });
+    return list;
+  }
+
+  setSort(field: SortField): void {
+    if (this.sortField === field) {
+      this.sortDir = this.sortDir === 'asc' ? 'desc' : 'asc';
+    } else {
+      this.sortField = field;
+      this.sortDir = 'asc';
+    }
+  }
 
   constructor(
     private http: HttpClient,

@@ -88,9 +88,14 @@ const FORM_STYLES = `
 @Component({
   selector: 'app-mf-fund-dialog',
   standalone: true,
-  imports: [NgIf, ReactiveFormsModule, MatDialogModule, MatButtonModule, MatIconModule, MatProgressSpinnerModule],
+  imports: [NgIf, NgFor, DecimalPipe, TitleCasePipe, ReactiveFormsModule, MatDialogModule, MatButtonModule, MatIconModule, MatProgressSpinnerModule],
   styles: [FORM_STYLES + `
     .divider { border:none;border-top:1px dashed #E5E7EB;margin:12px 0 10px; }
+    .vbtn { height:34px;padding:0 10px;border:1.5px solid #3B82F6;border-radius:6px;background:#EFF6FF;color:#1D4ED8;font-size:.75rem;font-weight:600;cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center;gap:4px;font-family:inherit;flex-shrink:0; }
+    .vbtn:hover:not(:disabled) { background:#DBEAFE; }
+    .vbtn:disabled { opacity:.5;cursor:default; }
+    .nav-ok  { font-size:.625rem;color:#16A34A;margin-top:3px; }
+    .nav-err { font-size:.625rem;color:#EF4444;margin-top:3px; }
   `],
   template: `
     <div class="h">
@@ -118,7 +123,17 @@ const FORM_STYLES = `
           </div>
           <div class="fg">
             <label>Scheme Code <span class="opt">(optional)</span></label>
-            <input class="fi" formControlName="schemeCode" placeholder="e.g. 120503">
+            <div style="display:flex;gap:6px">
+              <input class="fi" formControlName="schemeCode" placeholder="e.g. 120503"
+                style="flex:1" (input)="onSchemeCodeChange()">
+              <button type="button" class="vbtn" (click)="validateSchemeCode()"
+                [disabled]="!form.get('schemeCode')?.value?.trim() || validating">
+                <mat-spinner *ngIf="validating" diameter="12"></mat-spinner>
+                {{ validating ? '…' : 'Validate' }}
+              </button>
+            </div>
+            <div class="nav-ok" *ngIf="navInfo">✓ {{ navInfo }}</div>
+            <div class="nav-err" *ngIf="navError">{{ navError }}</div>
           </div>
         </div>
         <div class="r2">
@@ -137,10 +152,53 @@ const FORM_STYLES = `
           </div>
         </div>
 
-        <!-- First transaction — only shown when adding a new fund -->
+        <!-- Existing transactions — read-only, shown in edit mode only -->
+        <ng-container *ngIf="isEdit">
+          <hr class="divider">
+          <span class="sl">Transactions
+            <span style="font-weight:400;color:#9CA3AF;text-transform:none;letter-spacing:0"> — use the + button on the fund list to add more</span>
+          </span>
+          <ng-container *ngIf="data.fund!.transactions.length === 0">
+            <p style="font-size:.8125rem;color:#9CA3AF;margin:4px 0 8px">No transactions recorded yet.</p>
+          </ng-container>
+          <table *ngIf="data.fund!.transactions.length > 0" style="width:100%;border-collapse:collapse;margin-bottom:8px;font-size:.75rem">
+            <thead>
+              <tr>
+                <th style="text-align:left;padding:4px 6px;color:#9CA3AF;font-weight:600;border-bottom:1px solid #E5E7EB">Date</th>
+                <th style="text-align:left;padding:4px 6px;color:#9CA3AF;font-weight:600;border-bottom:1px solid #E5E7EB">Type</th>
+                <th style="text-align:right;padding:4px 6px;color:#9CA3AF;font-weight:600;border-bottom:1px solid #E5E7EB">Units</th>
+                <th style="text-align:right;padding:4px 6px;color:#9CA3AF;font-weight:600;border-bottom:1px solid #E5E7EB">NAV</th>
+                <th style="text-align:right;padding:4px 6px;color:#9CA3AF;font-weight:600;border-bottom:1px solid #E5E7EB">Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let t of data.fund!.transactions">
+                <td style="padding:5px 6px;border-bottom:1px solid #F3F4F6;color:#374151">{{ t.txn_date.slice(0,10) }}</td>
+                <td style="padding:5px 6px;border-bottom:1px solid #F3F4F6">
+                  <span [style.color]="t.type==='purchase'?'#15803D':'#B91C1C'" style="font-weight:600">{{ t.type | titlecase }}</span>
+                </td>
+                <td style="padding:5px 6px;border-bottom:1px solid #F3F4F6;text-align:right;font-family:monospace;color:#374151">{{ t.units | number:'1.4-4' }}</td>
+                <td style="padding:5px 6px;border-bottom:1px solid #F3F4F6;text-align:right;font-family:monospace;color:#374151">₹{{ t.nav | number:'1.2-2' }}</td>
+                <td style="padding:5px 6px;border-bottom:1px solid #F3F4F6;text-align:right;font-family:monospace;font-weight:600;color:#0F172A">₹{{ t.amount | number:'1.0-0' }}</td>
+              </tr>
+            </tbody>
+            <tfoot>
+              <tr>
+                <td colspan="2" style="padding:5px 6px;font-weight:700;color:#374151">Total</td>
+                <td style="padding:5px 6px;text-align:right;font-family:monospace;font-weight:700;color:#0F172A">{{ data.fund!.total_units | number:'1.4-4' }}</td>
+                <td></td>
+                <td style="padding:5px 6px;text-align:right;font-family:monospace;font-weight:700;color:#0F172A">₹{{ data.fund!.total_invested | number:'1.0-0' }}</td>
+              </tr>
+            </tfoot>
+          </table>
+        </ng-container>
+
+        <!-- First transaction — shown in add mode only -->
         <ng-container *ngIf="!isEdit">
           <hr class="divider">
-          <span class="sl">First Transaction <span style="font-weight:400;color:#9CA3AF;text-transform:none;letter-spacing:0">(optional — fill all three fields to record)</span></span>
+          <span class="sl">First Transaction
+            <span style="font-weight:400;color:#9CA3AF;text-transform:none;letter-spacing:0">(optional — fill all three fields to record)</span>
+          </span>
           <div class="r2">
             <div class="fg">
               <label>Type</label>
@@ -158,14 +216,16 @@ const FORM_STYLES = `
             <div class="fg">
               <label>Units</label>
               <input class="fi" type="number" formControlName="txnUnits"
-                placeholder="e.g. 337.50" step="0.0001" min="0.0001">
+                placeholder="e.g. 337.50" step="0.0001" min="0.0001"
+                (input)="autoCalcAmount()">
             </div>
             <div class="fg">
               <label>Purchase NAV</label>
               <div class="pfx">
                 <span class="sym">₹</span>
                 <input class="fi" type="number" formControlName="txnNav"
-                  placeholder="e.g. 284.00" step="0.0001" min="0.0001">
+                  placeholder="e.g. 284.00" step="0.0001" min="0.0001"
+                  (input)="autoCalcAmount()">
               </div>
             </div>
           </div>
@@ -176,6 +236,7 @@ const FORM_STYLES = `
               <input class="fi" type="number" formControlName="txnAmount"
                 placeholder="e.g. 99994" min="0.01">
             </div>
+            <span class="nav-err" *ngIf="txnPartialFill">Fill Units, Purchase NAV, and Invested Amount to record a transaction.</span>
           </div>
           <div class="fg">
             <label>Transaction Notes <span class="opt">(optional)</span></label>
@@ -198,7 +259,10 @@ const FORM_STYLES = `
 export class MfFundDialogComponent implements OnInit {
   isEdit: boolean;
   form!: FormGroup;
-  saving = false;
+  saving    = false;
+  validating = false;
+  navInfo   = '';
+  navError  = '';
 
   constructor(
     @Inject(MAT_DIALOG_DATA) public data: FundDialogData,
@@ -236,7 +300,8 @@ export class MfFundDialogComponent implements OnInit {
     if (v.notes)      fundBody['notes']      = v.notes;
 
     if (this.isEdit) {
-      this.http.patch(`${environment.apiUrl}/mutual-funds/${this.data.fund!.id}`, fundBody)
+      const fundId = this.data.fund!.id;
+      this.http.patch(`${environment.apiUrl}/mutual-funds/${fundId}`, fundBody)
         .subscribe({ next: () => this.dialogRef.close(true), error: () => { this.saving = false; } });
       return;
     }
@@ -244,29 +309,71 @@ export class MfFundDialogComponent implements OnInit {
     const hasTransaction = v.txnUnits != null && v.txnNav != null && v.txnAmount != null
       && Number(v.txnUnits) > 0 && Number(v.txnNav) > 0 && Number(v.txnAmount) > 0;
 
+    const txnBody = hasTransaction ? {
+      type:    v.txnType,
+      txnDate: v.txnDate,
+      units:   Number(v.txnUnits),
+      nav:     Number(v.txnNav),
+      amount:  Number(v.txnAmount),
+      notes:   v.txnNotes || undefined,
+    } : null;
+
     const createFund$ = this.http.post<{ data: { fund: { id: string } } }>(
       `${environment.apiUrl}/mutual-funds`, fundBody
     );
 
-    if (!hasTransaction) {
+    if (!txnBody) {
       createFund$.subscribe({ next: () => this.dialogRef.close(true), error: () => { this.saving = false; } });
       return;
     }
 
     createFund$.pipe(
-      switchMap(res => {
-        const fundId = res.data.fund.id;
-        const txnBody = {
-          type:    v.txnType,
-          txnDate: v.txnDate,
-          units:   Number(v.txnUnits),
-          nav:     Number(v.txnNav),
-          amount:  Number(v.txnAmount),
-          notes:   v.txnNotes || undefined,
-        };
-        return this.http.post(`${environment.apiUrl}/mutual-funds/${fundId}/transactions`, txnBody);
-      })
+      switchMap(res => this.http.post(
+        `${environment.apiUrl}/mutual-funds/${res.data.fund.id}/transactions`, txnBody
+      ))
     ).subscribe({ next: () => this.dialogRef.close(true), error: () => { this.saving = false; } });
+  }
+
+  get txnPartialFill(): boolean {
+    const v = this.form.getRawValue();
+    const filled = [v.txnUnits, v.txnNav, v.txnAmount].filter(x => x != null && Number(x) > 0).length;
+    return filled > 0 && filled < 3;
+  }
+
+  autoCalcAmount(): void {
+    const v = this.form.getRawValue();
+    const units = Number(v.txnUnits);
+    const nav   = Number(v.txnNav);
+    if (units > 0 && nav > 0) {
+      this.form.patchValue({ txnAmount: Math.round(units * nav * 100) / 100 }, { emitEvent: false });
+    }
+  }
+
+  onSchemeCodeChange(): void {
+    this.navInfo  = '';
+    this.navError = '';
+  }
+
+  validateSchemeCode(): void {
+    const code = (this.form.get('schemeCode')?.value ?? '').trim();
+    if (!code) return;
+    this.validating = true;
+    this.navInfo    = '';
+    this.navError   = '';
+    this.http.get<{ data: { nav: { nav: number; schemeName: string; date: string } } }>(
+      `${environment.apiUrl}/mutual-funds/nav/${encodeURIComponent(code)}`
+    ).subscribe({
+      next: (res) => {
+        const { nav, schemeName, date } = res.data.nav;
+        this.form.patchValue({ latestNav: nav });
+        this.navInfo    = `NAV ₹${nav} as of ${date} · ${schemeName}`;
+        this.validating = false;
+      },
+      error: () => {
+        this.navError   = 'Could not fetch NAV — check the scheme code at mfapi.in';
+        this.validating = false;
+      },
+    });
   }
 
   cancel(): void { this.dialogRef.close(false); }

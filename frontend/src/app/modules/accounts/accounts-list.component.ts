@@ -38,6 +38,12 @@ const TYPE_DESCRIPTIONS: Record<string, string> = {
   other:   'Any other financial account not covered by the above types.',
 };
 
+const EMOJI_GROUPS: { label: string; emojis: string[] }[] = [
+  { label: 'Finance',   emojis: ['🏦','🏧','💰','💳','💵','💶','💷','🪙','💹','📈','📊','🏛️','💱','🧾'] },
+  { label: 'Life',      emojis: ['🏠','🏢','🏪','🏫','🏥','🏨','✈️','🚗','🛒','📱','💼','🎓','🍽️','⚡'] },
+  { label: 'Personal',  emojis: ['💎','🏆','🌟','⭐','🎯','🌱','🌈','🔑','🎁','🌺','🍀','🦋','🎨','🛡️'] },
+];
+
 interface DialogData { account: Account | null; }
 
 // ── Dialog component ──────────────────────────────────────────────────────────
@@ -169,6 +175,21 @@ interface DialogData { account: Account | null; }
     textarea.fta::placeholder { color: #D1D5DB; }
     textarea.fta:focus { border-color: #3B82F6; box-shadow: 0 0 0 3px rgba(59,130,246,.1); }
 
+    /* emoji picker */
+    .emoji-section { margin-bottom:10px; }
+    .emoji-group-label { font-size:.5625rem;font-weight:700;color:#9CA3AF;text-transform:uppercase;letter-spacing:.07em;margin:0 0 4px;display:block; }
+    .emoji-grid { display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-bottom:6px; }
+    .emoji-opt {
+      display:flex;align-items:center;justify-content:center;
+      height:34px;border-radius:6px;border:1.5px solid transparent;
+      cursor:pointer;background:#F9FAFB;font-size:19px;transition:all .1s;
+    }
+    .emoji-opt:hover { background:#EFF6FF;border-color:#93C5FD; }
+    .emoji-opt.sel   { background:#EFF6FF;border-color:#2563EB;box-shadow:0 0 0 2px rgba(37,99,235,.12); }
+    .emoji-selected-row { display:flex;align-items:center;gap:8px;padding:6px 8px;background:#F8FAFC;border-radius:8px;border:1px solid #E5E7EB; }
+    .emoji-selected-preview { font-size:24px;line-height:1; }
+    .emoji-selected-label { font-size:.75rem;color:#374151;font-weight:500; }
+
     /* footer */
     .f {
       padding: 9px 16px 13px; border-top: 1px solid #F3F4F6;
@@ -221,6 +242,22 @@ interface DialogData { account: Account | null; }
           {{editTypeMeta.label}}
         </div>
       </ng-container>
+
+      <span class="sl">Icon — click to choose</span>
+      <div class="emoji-section">
+        <ng-container *ngFor="let group of emojiGroups">
+          <span class="emoji-group-label">{{ group.label }}</span>
+          <div class="emoji-grid">
+            <div *ngFor="let e of group.emojis" class="emoji-opt"
+              [class.sel]="selectedIcon === e"
+              (click)="selectedIcon = e">{{ e }}</div>
+          </div>
+        </ng-container>
+      </div>
+      <div class="emoji-selected-row">
+        <span class="emoji-selected-preview">{{ selectedIcon }}</span>
+        <span class="emoji-selected-label">Selected icon</span>
+      </div>
 
       <span class="sl">Details</span>
       <form [formGroup]="form">
@@ -288,8 +325,10 @@ export class AccountFormDialogComponent implements OnInit {
   saving = false;
   selectedType: AccountType = 'savings';
   editTypeMeta: AccountTypeMeta | undefined;
+  selectedIcon = '🏦';
 
-  readonly types = ACCOUNT_TYPES;
+  readonly types       = ACCOUNT_TYPES;
+  readonly emojiGroups = EMOJI_GROUPS;
 
   constructor(
     @Inject(MAT_DIALOG_DATA) public data: DialogData,
@@ -308,6 +347,7 @@ export class AccountFormDialogComponent implements OnInit {
         : 'other';
       this.selectedType = type as AccountType;
       this.editTypeMeta = TYPE_MAP[type] ?? TYPE_MAP['other'];
+      this.selectedIcon = (a.meta?.['icon'] as string) || '🏦';
       this.form = this.fb.group({
         name:        [a.name, Validators.required],
         bankName:    [a.institution ?? ''],
@@ -369,8 +409,9 @@ export class AccountFormDialogComponent implements OnInit {
         name:        v.name,
         institution: v.bankName || null,
         currency:    v.currency,
+        balance:     Number(v.balance),
         notes:       v.notes || null,
-        meta:        { ...existingMeta, openingDate: v.openingDate || null },
+        meta:        { ...existingMeta, openingDate: v.openingDate || null, icon: this.selectedIcon },
       };
       this.svc.update(this.data.account!.id, payload).subscribe({
         next:  () => this.dialogRef.close(true),
@@ -384,7 +425,7 @@ export class AccountFormDialogComponent implements OnInit {
         currency:    v.currency ?? 'INR',
         balance:     Number(v.balance) || 0,
         notes:       v.notes || undefined,
-        meta:        v.openingDate ? { openingDate: v.openingDate } : {},
+        meta:        { icon: this.selectedIcon, ...(v.openingDate ? { openingDate: v.openingDate } : {}) },
       };
       this.svc.create(payload).subscribe({
         next:  () => this.dialogRef.close(true),
@@ -553,8 +594,9 @@ export class AccountFormDialogComponent implements OnInit {
               <tr *ngFor="let acc of accounts">
                 <td>
                   <div style="display:flex;align-items:center;gap:12px">
-                    <div class="acc-icon" [style.background]="meta(acc.account_type).bg">
-                      <mat-icon [style.color]="meta(acc.account_type).color">{{ meta(acc.account_type).icon }}</mat-icon>
+                    <div class="acc-icon" [style.background]="meta(acc.account_type).bg"
+                      style="font-size:20px">
+                      {{ accIcon(acc) }}
                     </div>
                     <div>
                       <div class="acc-name">{{ acc.name }}</div>
@@ -682,5 +724,9 @@ export class AccountsListComponent implements OnInit {
 
   meta(t: AccountType): AccountTypeMeta {
     return TYPE_MAP[t] ?? { value: 'other' as AccountType, label: t, icon: 'category', color: '#6B7280', bg: '#F9FAFB' };
+  }
+
+  accIcon(acc: Account): string {
+    return (acc.meta?.['icon'] as string) || '🏦';
   }
 }

@@ -141,6 +141,7 @@ export class BondsService {
     accountId?: string;
     name: string;
     isin?: string;
+    source?: string | null;
     investmentAmount: number;
     purchaseDate: string;
     maturityDate: string;
@@ -150,7 +151,11 @@ export class BondsService {
     const accountId = data.accountId ??
       await getOrCreatePortfolioAccount(userId, 'bond', 'Bonds Portfolio');
 
-    const meta = { ...data.meta, ...(data.notes ? { notes: data.notes } : {}) };
+    const meta = {
+      ...data.meta,
+      ...(data.source ? { source: data.source } : {}),
+      ...(data.notes  ? { notes:  data.notes  } : {}),
+    };
 
     const [row] = await query<{ id: string }>(
       `INSERT INTO assets
@@ -167,6 +172,7 @@ export class BondsService {
   async update(id: string, userId: string, data: {
     name?: string;
     isin?: string | null;
+    source?: string | null;
     investmentAmount?: number;
     purchaseDate?: string | null;
     maturityDate?: string;
@@ -184,12 +190,13 @@ export class BondsService {
     if (data.purchaseDate !== undefined)     { fields.push(`purchase_date = $${idx++}`);   values.push(data.purchaseDate || null); }
     if (data.maturityDate !== undefined)     { fields.push(`maturity_date = $${idx++}`);   values.push(data.maturityDate); }
 
-    const needsMeta = data.notes !== undefined || data.meta !== undefined;
+    const needsMeta = data.notes !== undefined || data.source !== undefined || data.meta !== undefined;
     if (needsMeta) {
       const mergedMeta = {
         ...existing.meta,
         ...(data.meta ?? {}),
-        ...(data.notes !== undefined ? { notes: data.notes } : {}),
+        ...(data.source !== undefined ? { source: data.source } : {}),
+        ...(data.notes  !== undefined ? { notes:  data.notes  } : {}),
       };
       fields.push(`meta = $${idx++}`);
       values.push(JSON.stringify(mergedMeta));
